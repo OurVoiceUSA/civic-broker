@@ -401,6 +401,7 @@ async function whorepme(req, res) {
           // transform google "offical" into OV "incumbent"
           var incumbent = {
             id: politician_id,
+            divisionId: div,
             last_name: last_name,
             first_name: name.join(" "),
             address: address.line1+', '+address.city+', '+address.state+', '+address.zip,
@@ -421,6 +422,7 @@ async function whorepme(req, res) {
 
           // this is verbose ... but hmset doesn't take an array
           rc.hmset('politician:'+politician_id,
+            'divisionId', incumbent.divisionId,
             'last_name', incumbent.last_name,
             'first_name', incumbent.first_name,
             'address', incumbent.address,
