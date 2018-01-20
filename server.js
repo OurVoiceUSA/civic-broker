@@ -18,7 +18,7 @@ import GoogleStrategy from 'passport-google-oauth20';
 
 const ovi_config = {
   wsbase: ( process.env.WSBASE ? process.env.WSBASE : 'http://localhost:8080' ),
-  ip_header: ( process.env.CLIENT_IP_HEADER ? process.env.CLIENT_IP_HEADER : 'x-client-ip' ),
+  ip_header: ( process.env.CLIENT_IP_HEADER ? process.env.CLIENT_IP_HEADER : null ),
   redis_host: ( process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost' ),
   redis_port: ( process.env.REDIS_PORT ? process.env.REDIS_PORT : 6379 ),
   jwt_secret: ( process.env.JWS_SECRET ? process.env.JWS_SECRET : crypto.randomBytes(48).toString('hex') ),
@@ -117,8 +117,13 @@ async function dbwrap() {
     return rc[func](params);
 }
 
+function getClientIP(req) {
+  if (ovi_config.ip_header) return req.header(ovi_config.ip_header);
+  else return req.connection.remoteAddress;
+}
+
 function wslog(req, ws, log) {
-  log['client-ip'] = req.header(ovi_config.ip_header);
+  log['client-ip'] = getClientIP(req);
   log['time'] = (new Date).getTime();
   let str = JSON.stringify(log);
   if (ovi_config.DEBUG) console.log('DEBUG: '+ws+': '+str);
@@ -350,7 +355,7 @@ async function whorepme(req, res) {
 
   var url = "https://www.googleapis.com/civicinfo/v2/representatives"+
     "?key="+ovi_config.api_key_google+
-    "&quotaUser="+req.header(ovi_config.ip_header)+
+    "&quotaUser="+getClientIP(req)+
     "&address="+lat+","+lng;
 
   if (ovi_config.DEBUG) console.log("Calling Google Civic API: "+url);
@@ -516,11 +521,10 @@ app.use(passport.session());
 // imagine cache
 app.use(express.static('images'))
 
-// require ip_header
-// TODO: option to just use req.connection.remoteAddress instead
+// require ip_header if config for it is set
 if (!ovi_config.DEBUG) {
   app.use(function (req, res, next) {
-    if (!req.header(ovi_config.ip_header)) {
+    if (ovi_config.ip_header && !req.header(ovi_config.ip_header)) {
       console.log('Connection without '+ovi_config.ip_header+' header');
       res.status(400).send();
     }
