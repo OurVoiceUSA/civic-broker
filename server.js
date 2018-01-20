@@ -437,6 +437,8 @@ async function whorepme(req, res) {
             'youtube', incumbent.youtube
           );
 
+          rc.sadd('division:'+div, politician_id);
+
           incumbents.push(incumbent);
 
         }
