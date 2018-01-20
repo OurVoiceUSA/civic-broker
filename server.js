@@ -5,6 +5,7 @@ import expressAsync from 'express-async-await';
 import crypto from 'crypto';
 import logger from 'logops';
 import redis from 'redis';
+import fetch from 'node-fetch';
 import jwt from 'jsonwebtoken';
 import bodyParser from 'body-parser';
 import pifall from 'pifall';
@@ -334,7 +335,6 @@ async function whorepme(req, res) {
     local: { offices: []},
   };
 
-  var office;
   var error;
   var user = {};
 
@@ -348,13 +348,110 @@ async function whorepme(req, res) {
     return;
   }
 
-  // TODO: use Google Civic API
+  var url = "https://www.googleapis.com/civicinfo/v2/representatives"+
+    "?key="+ovi_config.api_key_google+
+    "&quotaUser="+req.header(ovi_config.ip_header)+
+    "&address="+lat+","+lng;
+
+  if (ovi_config.DEBUG) console.log("Calling Google Civic API: "+url);
+
+  try {
+    const response = await fetch(url);
+    const json = await response.json();
+
+    for (let div in json.divisions) {
+      for (let numo in json.divisions[div].officeIndices) {
+        let o = json.divisions[div].officeIndices[numo];
+        let office = json.offices[o];
+
+        var incumbents = [];
+        for (let nump in office.officialIndices) {
+          let p = office.officialIndices[nump];
+          let official = json.officials[p];
+
+          // TODO: hash photoUrl and download it to images/
+
+          // this is fragile - but google doesn't give an ID so what can we do?
+          let politician_id = sha1(div.name+office.name+official.name);
+
+          let address = ( official.address ? official.address[0] : {} );
+
+          // convert "channel" types to static vars
+          var facebook;
+          var twitter;
+          var googleplus;
+          var youtube;
+
+          if (official.channels) {
+            for (let ch in official.channels) {
+              switch (official.channels[ch].type) {
+                case 'Facebook': facebook = official.channels[ch].id; break;
+                case 'Twitter': twitter = official.channels[ch].id; break;
+                case 'GooglePlus': googleplus = official.channels[ch].id; break;
+                case 'YouTube': youtube = official.channels[ch].id; break;
+              }
+            }
+          }
+
+          // TODO: "youtube" is either a user or a channel ... need to figure out which :P
+
+          // transform google "offical" into OV "incumbent"
+          incumbents.push({
+            id: politician_id,
+            last_name: official.name,
+            first_name: official.name,
+            address: address.line1+', '+address.city+', '+address.state+', '+address.zip,
+            phone: (official.phones ? official.phones[0] : null ),
+            party: partyFull2Short(official.party),
+            type: null,
+            state: null,
+            district: null,
+            url: (official.urls ? official.urls[0] : null ),
+            photo_url: official.photoUrl,
+            facebook: facebook,
+            twitter: twitter,
+            googleplus: googleplus,
+            youtube: youtube,
+            ratings: await getRatings(politician_id, user.id),
+          });
+
+        }
+
+        resp.federal.offices.push({
+          key: div+':'+numo,
+          name: office.name,
+          state: null,
+          type: null,
+          district: null,
+          incumbents: incumbents,
+          challengers: [],
+        });
+
+      }
+    }
+
+  } catch (e) {
+    console.log(e);
+    error = 1;
+  }
 
   if (ovi_config.DEBUG) console.log(JSON.stringify(resp));
 
   wslog(req, 'whorepme', {lng: lng, lat: lat, address: req.body.address, user_id: user.id, error: error});
   res.header('Access-Control-Allow-Origin', '*');
   res.send(resp);
+}
+
+function partyFull2Short(partyFull) {
+  switch (partyFull) {
+    case 'Republican': return 'R';
+    case 'Democratic': return 'D';
+    case 'Green': return 'G';
+    case 'Libertarian': return 'L';
+    case 'Unknown': return null;
+    case 'Independent': return 'I';
+    default: return 'O';
+  }
 }
 
 // Redirect user back to the mobile app using Linking with a custom protocol OAuthLogin
@@ -413,6 +510,7 @@ app.post('/api/protected/dinfo', dinfo);
 app.post('/api/protected/dprofile', dprofile);
 app.post('/api/protected/politician_rate', politician_rate);
 app.post('/api/dinfo', dinfo);
+app.post('/api/whorepme', whorepme);
 app.get('/api/whorepme', whorepme);
 
 // Set up auth routes
