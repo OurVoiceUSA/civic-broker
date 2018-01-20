@@ -399,7 +399,7 @@ async function whorepme(req, res) {
           // TODO: "youtube" is either a user or a channel ... need to figure out which :P
 
           // transform google "offical" into OV "incumbent"
-          incumbents.push({
+          var incumbent = {
             id: politician_id,
             last_name: last_name,
             first_name: name.join(" "),
@@ -417,7 +417,25 @@ async function whorepme(req, res) {
             googleplus: googleplus,
             youtube: youtube,
             ratings: await getRatings(politician_id, user.id),
-          });
+          };
+
+          // this is verbose ... but hmset doesn't take an array
+          rc.hmset('politician:'+politician_id,
+            'last_name', incumbent.last_name,
+            'first_name', incumbent.first_name,
+            'address', incumbent.address,
+            'phone', incumbent.phone,
+            'email', incumbent.email,
+            'party', incumbent.party,
+            'url', incumbent.url,
+            'photo_url', incumbent.photo_url,
+            'facebook', incumbent.facebook,
+            'twitter', incumbent.twitter,
+            'googleplus', incumbent.googleplus,
+            'youtube', incumbent.youtube
+          );
+
+          incumbents.push(incumbent);
 
         }
 
