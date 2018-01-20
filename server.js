@@ -393,13 +393,16 @@ async function whorepme(req, res) {
             }
           }
 
+          var name = official.name.split(" ");
+          var last_name = name.pop();
+
           // TODO: "youtube" is either a user or a channel ... need to figure out which :P
 
           // transform google "offical" into OV "incumbent"
           incumbents.push({
             id: politician_id,
-            last_name: official.name,
-            first_name: official.name,
+            last_name: last_name,
+            first_name: name.join(" "),
             address: address.line1+', '+address.city+', '+address.state+', '+address.zip,
             phone: (official.phones ? official.phones[0] : null ),
             email: (official.emails ? official.emails[0] : null ),
