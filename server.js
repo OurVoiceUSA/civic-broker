@@ -402,6 +402,7 @@ async function whorepme(req, res) {
             first_name: official.name,
             address: address.line1+', '+address.city+', '+address.state+', '+address.zip,
             phone: (official.phones ? official.phones[0] : null ),
+            email: (official.emails ? official.emails[0] : null ),
             party: partyFull2Short(official.party),
             type: null,
             state: null,
