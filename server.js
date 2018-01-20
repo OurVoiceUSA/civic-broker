@@ -448,15 +448,26 @@ async function whorepme(req, res) {
 
         }
 
-        resp.federal.offices.push({
+        let of = {
           key: div+':'+numo,
           name: office.name,
           state: null,
-          type: null,
+          type: (office.levels ? office.levels.join(" ") : null) ,
           district: null,
           incumbents: incumbents,
           challengers: [],
-        });
+        };
+
+        if (office.levels) {
+          if (office.levels.includes('country'))
+            resp.federal.offices.push(of);
+          else if (office.levels.includes('administrativeArea1'))
+            resp.state.offices.push(of);
+          else
+            resp.local.offices.push(of);
+        } else {
+          resp.local.offices.push(of);
+        }
 
       }
     }
