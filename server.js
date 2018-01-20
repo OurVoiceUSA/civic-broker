@@ -356,7 +356,7 @@ async function whorepme(req, res) {
   var url = "https://www.googleapis.com/civicinfo/v2/representatives"+
     "?key="+ovi_config.api_key_google+
     "&quotaUser="+getClientIP(req)+
-    "&address="+lat+","+lng;
+    "&address="+(req.body.address?req.body.address:lat+","+lng);
 
   if (ovi_config.DEBUG) console.log("Calling Google Civic API: "+url);
 
