@@ -2,6 +2,7 @@
 import express from 'express';
 import expressLogging from 'express-logging';
 import expressAsync from 'express-async-await';
+import expressSession from 'express-session';
 import crypto from 'crypto';
 import logger from 'logops';
 import redis from 'redis';
@@ -21,6 +22,7 @@ const ovi_config = {
   ip_header: ( process.env.CLIENT_IP_HEADER ? process.env.CLIENT_IP_HEADER : null ),
   redis_host: ( process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost' ),
   redis_port: ( process.env.REDIS_PORT ? process.env.REDIS_PORT : 6379 ),
+  session_secret: ( process.env.SESSION_SECRET ? process.env.SESSION_SECRET : crypto.randomBytes(48).toString('hex') ),
   jwt_secret: ( process.env.JWS_SECRET ? process.env.JWS_SECRET : crypto.randomBytes(48).toString('hex') ),
   jwt_iss: ( process.env.JWS_ISS ? process.env.JWS_ISS : 'ourvoiceusa.org' ),
   api_key_google: ( process.env.API_KEY_GOOGLE ? process.env.API_KEY_GOOGLE : missingConfig("API_KEY_GOOGLE") ),
@@ -545,8 +547,15 @@ async function poke(req, res) {
 }
 
 // Initialize http server
+var connectRedis = require('connect-redis')(expressSession);
 const app = expressAsync(express());
 app.use(expressLogging(logger));
+app.use(expressSession({
+    store: new connectRedis({client: rc}),
+    secret: ovi_config.session_secret,
+    saveUninitialized: false,
+    resave: false
+}));
 app.use(bodyParser.json());
 
 // Initialize Passport
