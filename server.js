@@ -478,12 +478,14 @@ async function whorepme(req, res) {
             // else is other federal offices
           }
           else if (office.levels.includes('administrativeArea1')) {
-            // TODO: get district number from divisionId
-            if (office.name.match(/Senate/))
+            if (office.name.match(/Senate/)) {
+              of.title = office.name.replace(/ District.*/, "");
               resp.sldu.push(of);
-            else if (office.name.match(/House/) || office.name.match(/Assembly/) || office.name.match(/Delegate/))
+            }
+            else if (office.name.match(/House/) || office.name.match(/Assembly/) || office.name.match(/Delegate/)) {
+              of.title = office.name.replace(/ District.*/, "");
               resp.sldl.push(of);
-            else
+            } else
               resp.other.push(of);
           }
           else
