@@ -383,8 +383,11 @@ async function whorepme(req, res) {
 
           // TODO: hash photoUrl and download it to images/
 
-          // this is fragile - but google doesn't give an ID so what can we do?
-          let politician_id = sha1(div.name+office.name+official.name);
+          var last_name = official.name.split(" ").pop();
+          var first_name = official.name.split(" ").shift();
+
+          // calculate an ID based on division, last name, first name - no middle initial
+          let politician_id = sha1(div.name+":"+last_name+":"+first_name);
 
           let address = ( official.address ? official.address[0] : {} );
 
@@ -405,17 +408,13 @@ async function whorepme(req, res) {
             }
           }
 
-          var name = official.name.split(" ");
-          var last_name = name.pop();
-
           // TODO: "youtube" is either a user or a channel ... need to figure out which :P
 
           // transform google "offical" into OV "incumbent"
           var incumbent = {
             id: politician_id,
             divisionId: div,
-            last_name: last_name,
-            first_name: name.join(" "),
+            name: official.name,
             address: address.line1+', '+address.city+', '+address.state+', '+address.zip,
             phone: (official.phones ? official.phones[0] : null ),
             email: (official.emails ? official.emails[0] : null ),
