@@ -335,9 +335,11 @@ async function politician_rate(req, res) {
 
 async function whorepme(req, res) {
   var resp = {
-    federal: { offices: [] },
-    state: { offices: []},
-    local: { offices: []},
+    cd: [],
+    sen: [],
+    sldl: [],
+    sldu: [],
+    other: [],
   };
 
   var error;
@@ -365,6 +367,11 @@ async function whorepme(req, res) {
     const json = await response.json();
 
     for (let div in json.divisions) {
+
+      // if the last item of a division is a number, it's the district
+      let district = div.split(":").pop();
+      if (isNaN(district)) district = null;
+
       for (let numo in json.divisions[div].officeIndices) {
         let o = json.divisions[div].officeIndices[numo];
         let office = json.offices[o];
@@ -415,7 +422,7 @@ async function whorepme(req, res) {
             party: partyFull2Short(official.party),
             type: null,
             state: null,
-            district: null,
+            district: district,
             url: (official.urls ? official.urls[0] : null ),
             photo_url: official.photoUrl,
             facebook: facebook,
@@ -453,20 +460,36 @@ async function whorepme(req, res) {
           name: office.name,
           state: null,
           type: (office.levels ? office.levels.join(" ") : null) ,
-          district: null,
+          district: district,
           incumbents: incumbents,
           challengers: [],
         };
 
         if (office.levels) {
-          if (office.levels.includes('country'))
-            resp.federal.offices.push(of);
-          else if (office.levels.includes('administrativeArea1'))
-            resp.state.offices.push(of);
+          if (office.levels.includes('country')) {
+            if (office.name.match(/House of Representatives/)) {
+              of.title = "U.S. House of Representatives";
+              resp.cd.push(of);
+            }
+            else if (office.name.match(/Senate/)) {
+              of.title = "U.S. Senate";
+              resp.sen.push(of);
+            }
+            // else is other federal offices
+          }
+          else if (office.levels.includes('administrativeArea1')) {
+            // TODO: get district number from divisionId
+            if (office.name.match(/Senate/))
+              resp.sldu.push(of);
+            else if (office.name.match(/House/) || office.name.match(/Assembly/) || office.name.match(/Delegate/))
+              resp.sldl.push(of);
+            else
+              resp.other.push(of);
+          }
           else
-            resp.local.offices.push(of);
+            resp.other.push(of);
         } else {
-          resp.local.offices.push(of);
+          resp.other.push(of);
         }
 
       }
