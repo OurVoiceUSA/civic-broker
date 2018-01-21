@@ -4,11 +4,29 @@ This is the mobile app for Our Voice Initiative, a 501(c)(4) non-profit, non-par
 
 ## Features
 
-This is the API backend to the OVMobile project
+This is the API backend to the OVMobile project. It sources information from the Google Civic API and passes it along to the app. In the future, it will also broker and merge in information from other APIs as well, such as Openstates, Congress API, and other GitHub projects such as @unitedstates.
 
 ## Development Setup
 
-TODO
+Start by configuring the `.env` file:
+
+    cat << EOF > .env
+    export REDIS_HOST=localhost
+    export REDIS_PORT=6379
+    export WSBASE=http://localhost:8080
+    export OAUTH_FACEBOOK_CLIENTID=<YOUR ID>
+    export OAUTH_FACEBOOK_SECRET=<YOUR SECRET>
+    export OAUTH_GOOGLE_CLIENTID=<YOUR ID>
+    export OAUTH_GOOGLE_SECRET=<YOUR SECRET>
+    export API_KEY_GOOGLE=<YOUR KEY>
+    export DEBUG=1
+    EOF
+
+Then, install dependancies with `npm install`, source in the configuration with `source .env`, and start with `npm start`.
+
+Make sure you enable the Civic API on your google console in order for your `API_KEY_GOOGLE` to work here.
+
+**NOTE:** At the time of this writing, the tool versions are as follows:
 
     $ npm -v
     5.5.1
@@ -17,7 +35,7 @@ TODO
 
 ## Contributing
 
-Thank you for your interest in contributing to us! To avoid potential legal headaches and to allow distribution on Apple's App Store please sign our CLA (Contributors License Agreement). We handle this via pull request hooks on GitHub provided by https://cla-assistant.io/
+Thank you for your interest in contributing to us! To avoid potential legal headaches please sign our CLA (Contributors License Agreement). We handle this via pull request hooks on GitHub provided by https://cla-assistant.io/
 
 ## License
 
