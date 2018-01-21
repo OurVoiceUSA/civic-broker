@@ -387,7 +387,7 @@ async function whorepme(req, res) {
           var first_name = official.name.split(" ").shift();
 
           // calculate an ID based on division, last name, first name - no middle initial
-          let politician_id = sha1(div.name+":"+last_name+":"+first_name);
+          let politician_id = sha1(div+":"+last_name+":"+first_name);
 
           let address = ( official.address ? official.address[0] : {} );
 
