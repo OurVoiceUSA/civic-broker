@@ -286,6 +286,7 @@ async function cimage(req, res) {
   let photo_url = await dbwrap('hgetAsync', 'politician:'+politician_id, 'photo_url');
 
   if (ovi_config.img_cache_url && ovi_config.img_cache_opt) {
+    res.header('x-source-url', photo_url);
     req.url = '/'+ovi_config.img_cache_opt+'/'+photo_url;
     apiProxy.web(req, res, {target: ovi_config.img_cache_url});
   } else {
