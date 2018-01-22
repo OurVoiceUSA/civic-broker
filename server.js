@@ -350,10 +350,11 @@ async function whorepme(req, res) {
           let address = ( official.address ? official.address[0] : {} );
 
           // convert "channel" types to static vars
-          var facebook;
-          var twitter;
-          var googleplus;
-          var youtube;
+          let facebook = '';
+          let twitter = '';
+          let googleplus = '';
+          let youtube_key = 'youtube';
+          let youtube_val = '';
 
           if (official.channels) {
             for (let ch in official.channels) {
@@ -361,7 +362,13 @@ async function whorepme(req, res) {
                 case 'Facebook': facebook = official.channels[ch].id; break;
                 case 'Twitter': twitter = official.channels[ch].id; break;
                 case 'GooglePlus': googleplus = official.channels[ch].id; break;
-                case 'YouTube': youtube = official.channels[ch].id; break;
+                case 'YouTube':
+                  youtube_val = official.channels[ch].id;
+                  if (official.channels[ch].id.match(/^UC/))
+                    youtube_key = "youtube_id";
+                  else
+                    youtube_key = "youtube";
+                  break;
               }
             }
           }
@@ -384,7 +391,7 @@ async function whorepme(req, res) {
             facebook: facebook,
             twitter: twitter,
             googleplus: googleplus,
-            youtube: youtube,
+            [youtube_key]: youtube_val,
             ratings: await getRatings(politician_id, user.id),
           };
 
@@ -402,7 +409,7 @@ async function whorepme(req, res) {
             'facebook', incumbent.facebook,
             'twitter', incumbent.twitter,
             'googleplus', incumbent.googleplus,
-            'youtube', incumbent.youtube
+            youtube_key, incumbent[youtube_key]
           );
 
           rc.sadd('division:'+div, politician_id);
