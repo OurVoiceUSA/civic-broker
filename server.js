@@ -285,6 +285,8 @@ async function cimage(req, res) {
   let politician_id = img.split(".").shift();
   let photo_url = await dbwrap('hgetAsync', 'politician:'+politician_id, 'photo_url');
 
+  if (!photo_url) return res.sendStatus(404);
+
   if (ovi_config.img_cache_url && ovi_config.img_cache_opt) {
     res.header('x-source-url', photo_url);
     req.url = '/'+ovi_config.img_cache_opt+'/'+photo_url;
@@ -373,8 +375,6 @@ async function whorepme(req, res) {
               }
             }
           }
-
-          // TODO: "youtube" is either a user or a channel ... need to figure out which :P
 
           // transform google "offical" into OV "incumbent"
           var incumbent = {
