@@ -401,7 +401,7 @@ async function whorepme(req, res) {
         let of = {
           key: div+':'+numo,
           name: office.name,
-          state: null,
+          state: json.normalizedInput.state,
           type: (office.levels ? office.levels.join(" ") : null) ,
           district: district,
           incumbents: incumbents,
