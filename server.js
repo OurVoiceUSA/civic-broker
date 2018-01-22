@@ -509,12 +509,12 @@ if (!ovi_config.DEBUG) {
 app.get('/poke', poke);
 
 // ws routes
-app.post('/api/protected/dinfo', dinfo);
-app.post('/api/protected/dprofile', dprofile);
-app.post('/api/protected/politician_rate', politician_rate);
-app.post('/api/dinfo', dinfo);
-app.post('/api/whorepme', whorepme);
-app.get('/api/whorepme', whorepme);
+app.post('/api/v1/protected/dinfo', dinfo);
+app.post('/api/v1/protected/dprofile', dprofile);
+app.post('/api/v1/protected/politician_rate', politician_rate);
+app.post('/api/v1/dinfo', dinfo);
+app.post('/api/v1/whorepme', whorepme);
+app.get('/api/v1/whorepme', whorepme);
 
 // Launch the server
 const server = app.listen(8080, () => {
