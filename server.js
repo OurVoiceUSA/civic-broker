@@ -2,7 +2,6 @@
 import express from 'express';
 import expressLogging from 'express-logging';
 import expressAsync from 'express-async-await';
-import expressSession from 'express-session';
 import crypto from 'crypto';
 import logger from 'logops';
 import redis from 'redis';
@@ -13,80 +12,21 @@ import pifall from 'pifall';
 import fs from 'fs';
 import http from 'http';
 import sha1 from 'sha1';
-import passport from 'passport';
-import FacebookStrategy from 'passport-facebook';
-import GoogleStrategy from 'passport-google-oauth20';
 
 const ovi_config = {
   wsbase: ( process.env.WSBASE ? process.env.WSBASE : 'http://localhost:8080' ),
   ip_header: ( process.env.CLIENT_IP_HEADER ? process.env.CLIENT_IP_HEADER : null ),
   redis_host: ( process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost' ),
   redis_port: ( process.env.REDIS_PORT ? process.env.REDIS_PORT : 6379 ),
-  session_secret: ( process.env.SESSION_SECRET ? process.env.SESSION_SECRET : crypto.randomBytes(48).toString('hex') ),
   jwt_secret: ( process.env.JWS_SECRET ? process.env.JWS_SECRET : crypto.randomBytes(48).toString('hex') ),
   jwt_iss: ( process.env.JWS_ISS ? process.env.JWS_ISS : 'ourvoiceusa.org' ),
   api_key_google: ( process.env.API_KEY_GOOGLE ? process.env.API_KEY_GOOGLE : missingConfig("API_KEY_GOOGLE") ),
   DEBUG: ( process.env.DEBUG ? process.env.DEBUG : false ),
 };
 
-const passport_facebook = {
-  clientID: ( process.env.OAUTH_FACEBOOK_CLIENTID ? process.env.OAUTH_FACEBOOK_CLIENTID : missingConfig("OAUTH_FACEBOOK_CLIENTID") ),
-  clientSecret: ( process.env.OAUTH_FACEBOOK_SECRET ? process.env.OAUTH_FACEBOOK_SECRET : missingConfig("OAUTH_FACEBOOK_SECRET") ),
-  enableProof: true,
-  state: true,
-  profileFields: ['id', 'name', 'displayName', 'picture', 'emails'],
-};
-
-const passport_google = {
-  clientID: ( process.env.OAUTH_GOOGLE_CLIENTID ? process.env.OAUTH_GOOGLE_CLIENTID : missingConfig("OAUTH_GOOGLE_CLIENTID") ),
-  clientSecret: ( process.env.OAUTH_GOOGLE_SECRET ? process.env.OAUTH_GOOGLE_SECRET : missingConfig("OAUTH_GOOGLE_SECRET") ),
-  state: true,
-};
-
 // async'ify redis
 pifall(redis.RedisClient.prototype);
 pifall(redis.Multi.prototype);
-
-// Transform Facebook profile because Facebook and Google profile objects look different
-// and we want to transform them into user objects that have the same set of attributes
-const transformFacebookProfile = (profile) => ({
-  id: 'facebook:' + profile.id,
-  name: profile.name,
-  email: (profile.email?profile.email:''),
-  avatar: (profile.picture.data.url?profile.picture.data.url:''),
-  iss: ovi_config.jwt_iss,
-  iat: Math.floor(new Date().getTime() / 1000),
-  exp: Math.floor(new Date().getTime() / 1000)+604800,
-});
-
-// Transform Google profile into user object
-const transformGoogleProfile = (profile) => ({
-  id: 'google:' + profile.id,
-  name: profile.displayName,
-  email: (profile.emails[0].value?profile.emails[0].value:''),
-  avatar: (profile.image.url?profile.image.url:''),
-  iss: ovi_config.jwt_iss,
-  iat: Math.floor(new Date().getTime() / 1000),
-  exp: Math.floor(new Date().getTime() / 1000)+604800,
-});
-
-// Register Facebook Passport strategy
-passport.use(new FacebookStrategy(passport_facebook,
-  async (accessToken, refreshToken, profile, done)
-    => done(null, transformFacebookProfile(profile._json))
-));
-
-// Register Google Passport strategy
-passport.use(new GoogleStrategy(passport_google,
-  async (accessToken, refreshToken, profile, done)
-    => done(null, transformGoogleProfile(profile._json))
-));
-
-// Serialize user into the sessions
-passport.serializeUser((user, done) => done(null, user));
-
-// Deserialize user from the sessions
-passport.deserializeUser((user, done) => done(null, user));
 
 // redis connection
 var rc = redis.createClient(ovi_config.redis_port, ovi_config.redis_host,
@@ -547,20 +487,9 @@ async function poke(req, res) {
 }
 
 // Initialize http server
-var connectRedis = require('connect-redis')(expressSession);
 const app = expressAsync(express());
 app.use(expressLogging(logger));
-app.use(expressSession({
-    store: new connectRedis({client: rc}),
-    secret: ovi_config.session_secret,
-    saveUninitialized: false,
-    resave: false
-}));
 app.use(bodyParser.json());
-
-// Initialize Passport
-app.use(passport.initialize());
-app.use(passport.session());
 
 // imagine cache
 app.use(express.static('images'))
@@ -587,19 +516,10 @@ app.post('/api/dinfo', dinfo);
 app.post('/api/whorepme', whorepme);
 app.get('/api/whorepme', whorepme);
 
-// Set up auth routes
-app.get('/auth/fm', passport.authenticate('facebook', { callbackURL: ovi_config.wsbase+'/auth/fm/callback', scope: ['email']} ));
-// google accepts the custom loginHint
-app.get('/auth/gm', function(req, res, next) {
-  passport.authenticate('google', { loginHint: req.query.loginHint, callbackURL: ovi_config.wsbase+'/auth/gm/callback', scope: ['profile', 'email'] }
-  )(req, res, next)});
-app.get('/auth/fm/callback', passport.authenticate('facebook', { callbackURL: ovi_config.wsbase+'/auth/fm/callback', failureRedirect: '/auth/fm' }), moauthredir);
-app.get('/auth/gm/callback', passport.authenticate('google',   { callbackURL: ovi_config.wsbase+'/auth/gm/callback', failureRedirect: '/auth/gm' }), moauthredir);
-
 // Launch the server
 const server = app.listen(8080, () => {
   const { address, port } = server.address();
-  console.log('databroker express');
+  console.log('civic-broker express');
   console.log(`Listening at http://${address}:${port}`);
 });
 

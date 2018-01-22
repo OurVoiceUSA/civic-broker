@@ -14,10 +14,6 @@ Start by configuring the `.env` file:
     export REDIS_HOST=localhost
     export REDIS_PORT=6379
     export WSBASE=http://localhost:8080
-    export OAUTH_FACEBOOK_CLIENTID=<YOUR ID>
-    export OAUTH_FACEBOOK_SECRET=<YOUR SECRET>
-    export OAUTH_GOOGLE_CLIENTID=<YOUR ID>
-    export OAUTH_GOOGLE_SECRET=<YOUR SECRET>
     export API_KEY_GOOGLE=<YOUR KEY>
     export DEBUG=1
     EOF
