@@ -511,6 +511,7 @@ async function poke(req, res) {
 // Initialize http server
 const app = expressAsync(express());
 const apiProxy = httpProxy.createProxyServer();
+app.disable('x-powered-by');
 app.use(expressLogging(logger));
 app.use(bodyParser.json());
 
