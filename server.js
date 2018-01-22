@@ -281,14 +281,15 @@ async function politician_rate(req, res) {
 }
 
 async function cimage(req, res) {
-  let politician_id = req.url.split("/").pop();
+  let img = req.url.split("/").pop();
+  let politician_id = img.split(".").shift();
   let photo_url = await dbwrap('hgetAsync', 'politician:'+politician_id, 'photo_url');
 
   if (ovi_config.img_cache_url && ovi_config.img_cache_opt) {
     req.url = '/'+ovi_config.img_cache_opt+'/'+photo_url;
     apiProxy.web(req, res, {target: ovi_config.img_cache_url});
   } else {
-    res.sendStatus(500);
+    res.sendStatus(404);
   }
 }
 
@@ -379,7 +380,7 @@ async function whorepme(req, res) {
             state: json.normalizedInput.state,
             district: district,
             url: (official.urls ? official.urls[0] : null ),
-            photo_url: (official.photoUrl?ovi_config.wsbase+'/images/'+politician_id:''),
+            photo_url: (official.photoUrl?ovi_config.wsbase+'/images/'+politician_id+'.'+official.photoUrl.split(".").pop():''),
             facebook: facebook,
             twitter: twitter,
             googleplus: googleplus,
