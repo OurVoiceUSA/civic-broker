@@ -287,13 +287,9 @@ async function cimage(req, res) {
 
   if (!photo_url) return res.sendStatus(404);
 
-  if (ovi_config.img_cache_url && ovi_config.img_cache_opt) {
-    res.header('x-source-url', photo_url);
-    req.url = '/'+ovi_config.img_cache_opt+'/'+photo_url;
-    apiProxy.web(req, res, {target: ovi_config.img_cache_url});
-  } else {
-    res.sendStatus(404);
-  }
+  res.header('x-source-url', photo_url);
+  req.url = '/'+ovi_config.img_cache_opt+'/'+photo_url;
+  apiProxy.web(req, res, {target: ovi_config.img_cache_url});
 }
 
 async function whorepme(req, res) {
@@ -388,7 +384,7 @@ async function whorepme(req, res) {
             state: json.normalizedInput.state,
             district: district,
             url: (official.urls ? official.urls[0] : null ),
-            photo_url: (official.photoUrl?ovi_config.wsbase+'/images/'+politician_id+'.'+official.photoUrl.split(".").pop():''),
+            photo_url: ((official.photoUrl && ovi_config.img_cache_url && ovi_config.img_cache_opt)?ovi_config.wsbase+'/images/'+politician_id+'.'+official.photoUrl.split(".").pop():(official.photoUrl)?official.photoUrl:''),
             facebook: facebook,
             twitter: twitter,
             googleplus: googleplus,
@@ -531,7 +527,8 @@ if (!ovi_config.DEBUG) {
 app.get('/poke', poke);
 
 // ws routes
-app.get('/images/*', cimage);
+if (ovi_config.img_cache_url && ovi_config.img_cache_opt)
+  app.get('/images/*', cimage);
 app.post('/api/v1/protected/dinfo', dinfo);
 app.post('/api/v1/protected/dprofile', dprofile);
 app.post('/api/v1/protected/politician_rate', politician_rate);
