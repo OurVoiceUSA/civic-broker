@@ -85,6 +85,8 @@ async function dinfo(req, res) {
     token = req.header('authorization').split(' ')[1];;
     user = jwt.decode(token);
     rc.sadd('dinfo:'+user.id, JSON.stringify(req.body));
+    // update any changes from oauth to this user
+    await dbwrap('hmsetAsync', 'user:'+user.id, 'name', user.name, 'email', user.email, 'avatar', user.avatar);
     resp = await dbwrap('hgetallAsync', 'user:'+user.id);
   } catch (e) {
     error = 1;
