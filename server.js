@@ -12,6 +12,7 @@ import pifall from 'pifall';
 import fs from 'fs';
 import http from 'http';
 import sha1 from 'sha1';
+import httpProxy from 'http-proxy';
 
 const ovi_config = {
   wsbase: ( process.env.WSBASE ? process.env.WSBASE : 'http://localhost:8080' ),
@@ -21,6 +22,8 @@ const ovi_config = {
   jwt_secret: ( process.env.JWS_SECRET ? process.env.JWS_SECRET : crypto.randomBytes(48).toString('hex') ),
   jwt_iss: ( process.env.JWS_ISS ? process.env.JWS_ISS : 'example.com' ),
   api_key_google: ( process.env.API_KEY_GOOGLE ? process.env.API_KEY_GOOGLE : missingConfig("API_KEY_GOOGLE") ),
+  img_cache_url: ( process.env.IMG_CACHE_URL ? process.env.IMG_CACHE_URL : null ),
+  img_cache_opt: ( process.env.IMG_CACHE_OPT ? process.env.IMG_CACHE_OPT : null ),
   DEBUG: ( process.env.DEBUG ? process.env.DEBUG : false ),
 };
 
@@ -277,6 +280,18 @@ async function politician_rate(req, res) {
   res.send(resp);
 }
 
+async function cimage(req, res) {
+  let politician_id = req.url.split("/").pop();
+  let photo_url = await dbwrap('hgetAsync', 'politician:'+politician_id, 'photo_url');
+
+  if (ovi_config.img_cache_url && ovi_config.img_cache_opt) {
+    req.url = '/'+ovi_config.img_cache_opt+'/'+photo_url;
+    apiProxy.web(req, res, {target: ovi_config.img_cache_url});
+  } else {
+    res.sendStatus(500);
+  }
+}
+
 async function whorepme(req, res) {
   var resp = {
     cd: [],
@@ -325,8 +340,6 @@ async function whorepme(req, res) {
           let p = office.officialIndices[nump];
           let official = json.officials[p];
 
-          // TODO: hash photoUrl and download it to images/
-
           var last_name = official.name.split(" ").pop();
           var first_name = official.name.split(" ").shift();
 
@@ -363,11 +376,10 @@ async function whorepme(req, res) {
             phone: (official.phones ? official.phones[0] : null ),
             email: (official.emails ? official.emails[0] : null ),
             party: partyFull2Short(official.party),
-            type: null,
-            state: null,
+            state: json.normalizedInput.state,
             district: district,
             url: (official.urls ? official.urls[0] : null ),
-            photo_url: official.photoUrl,
+            photo_url: (official.photoUrl?ovi_config.wsbase+'/images/'+politician_id:''),
             facebook: facebook,
             twitter: twitter,
             googleplus: googleplus,
@@ -385,7 +397,7 @@ async function whorepme(req, res) {
             'email', incumbent.email,
             'party', incumbent.party,
             'url', incumbent.url,
-            'photo_url', incumbent.photo_url,
+            'photo_url', official.photoUrl, // store the actual URL and not our cached
             'facebook', incumbent.facebook,
             'twitter', incumbent.twitter,
             'googleplus', incumbent.googleplus,
@@ -490,11 +502,9 @@ async function poke(req, res) {
 
 // Initialize http server
 const app = expressAsync(express());
+const apiProxy = httpProxy.createProxyServer();
 app.use(expressLogging(logger));
 app.use(bodyParser.json());
-
-// imagine cache
-app.use(express.static('images'))
 
 // require ip_header if config for it is set
 if (!ovi_config.DEBUG) {
@@ -511,6 +521,7 @@ if (!ovi_config.DEBUG) {
 app.get('/poke', poke);
 
 // ws routes
+app.get('/images/*', cimage);
 app.post('/api/v1/protected/dinfo', dinfo);
 app.post('/api/v1/protected/dprofile', dprofile);
 app.post('/api/v1/protected/politician_rate', politician_rate);
