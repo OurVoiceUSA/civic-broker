@@ -83,6 +83,7 @@ function wslog(req, ws, log) {
 async function dinfo(req, res) {
   var resp;
   var error;
+  if (!req.user.id) return res.sendStatus(401);
   try {
     rc.sadd('dinfo:'+req.user.id, JSON.stringify(req.body));
     // update any changes from oauth to this user
@@ -101,6 +102,7 @@ async function dinfo(req, res) {
 async function dprofile(req, res) {
   var resp;
   var error;
+  if (!req.user.id) return res.sendStatus(401);
   try {
     // TODO: input validation
 
@@ -247,6 +249,7 @@ async function politician_rate(req, res) {
   var politician_id;
   var rating;
   var error;
+  if (!req.user.id) return res.sendStatus(401);
   try {
     politician_id = req.body.politician_id;
     rating = req.body.rating;
