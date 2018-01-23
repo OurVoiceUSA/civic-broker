@@ -68,7 +68,8 @@ function getClientIP(req) {
 }
 
 function wslog(req, ws, log) {
-  log['client-ip'] = getClientIP(req);
+  log['user_id'] = req.user.id;
+  log['client_ip'] = getClientIP(req);
   log['time'] = (new Date).getTime();
   let str = JSON.stringify(log);
   if (ovi_config.DEBUG) console.log('DEBUG: '+ws+': '+str);
@@ -81,59 +82,51 @@ function wslog(req, ws, log) {
 
 async function dinfo(req, res) {
   var resp;
-  var token;
-  var user = {};
   var error;
   try {
-    token = req.header('authorization').split(' ')[1];;
-    user = jwt.decode(token);
-    rc.sadd('dinfo:'+user.id, JSON.stringify(req.body));
+    rc.sadd('dinfo:'+req.user.id, JSON.stringify(req.body));
     // update any changes from oauth to this user
-    await dbwrap('hmsetAsync', 'user:'+user.id, 'name', user.name, 'email', user.email, 'avatar', user.avatar);
-    resp = await dbwrap('hgetallAsync', 'user:'+user.id);
+    await dbwrap('hmsetAsync', 'user:'+req.user.id, 'name', req.user.name, 'email', req.user.email, 'avatar', req.user.avatar);
+    resp = await dbwrap('hgetallAsync', 'user:'+req.user.id);
   } catch (e) {
     error = 1;
     console.log(e);
   }
   if (ovi_config.DEBUG)
     console.log(JSON.stringify(resp))
-  wslog(req, 'dinfo', {UniqueID: req.body.UniqueID, user_id: user.id, error: error});
+  wslog(req, 'dinfo', {UniqueID: req.body.UniqueID, error: error});
   res.send(resp);
 }
 
 async function dprofile(req, res) {
   var resp;
   var error;
-  var user = {};
   try {
-    let token = req.header('authorization').split(' ')[1];;
-    user = jwt.decode(token);
-
     // TODO: input validation
 
     // TODO: multi / exec for atomic
 
     if (req.body.party) {
-      let partyOld = await dbwrap('hgetAsync', 'user:'+user.id, 'party');
+      let partyOld = await dbwrap('hgetAsync', 'user:'+req.user.id, 'party');
       if (partyOld !== req.body.party) {
-        await dbwrap('hsetAsync', 'user:'+user.id, 'party', req.body.party);
+        await dbwrap('hsetAsync', 'user:'+req.user.id, 'party', req.body.party);
 
         // fix party affiliations in all this user's ratings
-        var ratings = await dbwrap('smembersAsync', 'user:'+user.id+':politician_ratings');
+        var ratings = await dbwrap('smembersAsync', 'user:'+req.user.id+':politician_ratings');
 
         for (let i = 0; i < ratings.length; i++) {
           let politician_id = ratings[i];
-          let rating = await dbwrap('zscoreAsync', 'politician:'+politician_id+':rating:'+partyOld, user.id);
+          let rating = await dbwrap('zscoreAsync', 'politician:'+politician_id+':rating:'+partyOld, req.user.id);
           if (rating) {
-            await dbwrap('zremAsync', 'politician:'+politician_id+':rating:'+partyOld, user.id);
-            await dbwrap('zaddAsync', 'politician:'+politician_id+':rating:'+req.body.party, rating, user.id);
+            await dbwrap('zremAsync', 'politician:'+politician_id+':rating:'+partyOld, req.user.id);
+            await dbwrap('zaddAsync', 'politician:'+politician_id+':rating:'+req.body.party, rating, req.user.id);
           }
 
           // now try the other rating key
-          rating = await dbwrap('zscoreAsync', 'politician:'+politician_id+':rating_outsider:'+partyOld, user.id);
+          rating = await dbwrap('zscoreAsync', 'politician:'+politician_id+':rating_outsider:'+partyOld, req.user.id);
           if (rating) {
-            await dbwrap('zremAsync', 'politician:'+politician_id+':rating_outsider:'+partyOld, user.id);
-            await dbwrap('zaddAsync', 'politician:'+politician_id+':rating_outsider:'+req.body.party, rating, user.id);
+            await dbwrap('zremAsync', 'politician:'+politician_id+':rating_outsider:'+partyOld, req.user.id);
+            await dbwrap('zaddAsync', 'politician:'+politician_id+':rating_outsider:'+req.body.party, rating, req.user.id);
           }
         }
       }
@@ -141,32 +134,32 @@ async function dprofile(req, res) {
 
     if (req.body.address && req.body.lng && req.body.lat) {
       // get this user's address prior to update
-      var arr = await dbwrap('hmgetAsync', 'user:'+user.id, 'home_lng', 'home_lat');
+      var arr = await dbwrap('hmgetAsync', 'user:'+req.user.id, 'home_lng', 'home_lat');
 
       // set new address
       await dbwrap('hmsetAsync',
-        'user:'+user.id,
+        'user:'+req.user.id,
         'home_address', req.body.address, 
         'home_lng', req.body.lng,
         'home_lat', req.body.lat
       );
 
       // go through everyone this user has rated and see if they're still in the district
-      var incumbents = await dbwrap('smembersAsync', 'user:'+user.id+':politician_ratings');
-      var party = await getUserParty(user.id);
+      var incumbents = await dbwrap('smembersAsync', 'user:'+req.user.id+':politician_ratings');
+      var party = await getUserParty(req.user.id);
       for (let i = 0; i < incumbents.length; i++) {
         var rating;
-        if (await userInPolDistrict(incumbents[i], user.id, req.body.lng, req.body.lat)) {
-          rating = await dbwrap('zscoreAsync', 'politician:'+incumbents[i]+':rating_outsider:'+party, user.id);
+        if (await userInPolDistrict(incumbents[i], req.user.id, req.body.lng, req.body.lat)) {
+          rating = await dbwrap('zscoreAsync', 'politician:'+incumbents[i]+':rating_outsider:'+party, req.user.id);
           if (rating) {
-            await dbwrap('zremAsync', 'politician:'+incumbents[i]+':rating_outsider:'+party, user.id);
-            await dbwrap('zaddAsync', 'politician:'+incumbents[i]+':rating:'+party, rating, user.id);
+            await dbwrap('zremAsync', 'politician:'+incumbents[i]+':rating_outsider:'+party, req.user.id);
+            await dbwrap('zaddAsync', 'politician:'+incumbents[i]+':rating:'+party, rating, req.user.id);
           }
         } else {
-          rating = await dbwrap('zscoreAsync', 'politician:'+incumbents[i]+':rating:'+party, user.id);
+          rating = await dbwrap('zscoreAsync', 'politician:'+incumbents[i]+':rating:'+party, req.user.id);
           if (rating) {
-            await dbwrap('zremAsync', 'politician:'+incumbents[i]+':rating:'+party, user.id);
-            await dbwrap('zaddAsync', 'politician:'+incumbents[i]+':rating_outsider:'+party, rating, user.id);
+            await dbwrap('zremAsync', 'politician:'+incumbents[i]+':rating:'+party, req.user.id);
+            await dbwrap('zaddAsync', 'politician:'+incumbents[i]+':rating_outsider:'+party, rating, req.user.id);
           }
         }
       }
@@ -176,7 +169,7 @@ async function dprofile(req, res) {
     console.log(e);
   }
 
-  wslog(req, 'dprofile', {user_id: user.id, party: req.body.party, address: req.body.address, lng: req.body.lng, lat: req.body.lat, error: error});
+  wslog(req, 'dprofile', {party: req.body.party, address: req.body.address, lng: req.body.lng, lat: req.body.lat, error: error});
 
   res.send('OK');
 }
@@ -240,33 +233,30 @@ async function userInPolDistrict(politician_id, user_id, lng, lat) {
 
 async function politician_rate(req, res) {
   var resp = {msg: 'Error'};
-  var user;
   var politician_id;
   var rating;
   var error;
   try {
-    let token = req.header('authorization').split(' ')[1];;
-    user = jwt.decode(token);
     politician_id = req.body.politician_id;
     rating = req.body.rating;
     let lng = req.body.lng;
     let lat = req.body.lat;
 
-    if (!politician_id || !user.id) {
+    if (!politician_id || !req.user.id) {
       throw 'Invalid Input.';
     }
 
     // rating is optional
     if (rating) {
       // keep track of which politicians this users has rated so we can cleanup if they change party or district
-      await dbwrap('sadd', 'user:'+user.id+':politician_ratings', politician_id);
-      if (await userInPolDistrict(politician_id, user.id, lng, lat))
-        await dbwrap('zaddAsync', 'politician:'+politician_id+':rating:'+await getUserParty(user.id), rating, user.id);
+      await dbwrap('sadd', 'user:'+req.user.id+':politician_ratings', politician_id);
+      if (await userInPolDistrict(politician_id, req.user.id, lng, lat))
+        await dbwrap('zaddAsync', 'politician:'+politician_id+':rating:'+await getUserParty(req.user.id), rating, req.user.id);
       else
-        await dbwrap('zaddAsync', 'politician:'+politician_id+':rating_outsider:'+await getUserParty(user.id), rating, user.id);
+        await dbwrap('zaddAsync', 'politician:'+politician_id+':rating_outsider:'+await getUserParty(req.user.id), rating, req.user.id);
     }
 
-    resp = await getRatings(politician_id, user.id);
+    resp = await getRatings(politician_id, req.user.id);
 
   } catch (e) {
     console.log(e);
@@ -276,7 +266,7 @@ async function politician_rate(req, res) {
   if (ovi_config.DEBUG)
     console.log(JSON.stringify(resp));
 
-  wslog(req, 'politician_rate', {user_id: user.id, politician_id: politician_id, rating: rating, error: error});
+  wslog(req, 'politician_rate', {politician_id: politician_id, rating: rating, error: error});
   res.send(resp);
 }
 
@@ -302,7 +292,6 @@ async function whorepme(req, res) {
   };
 
   var error;
-  var user = {};
 
   let lng = Number.parseFloat(req.query.lng);
   let lat = Number.parseFloat(req.query.lat);
@@ -389,7 +378,7 @@ async function whorepme(req, res) {
             twitter: twitter,
             googleplus: googleplus,
             [youtube_key]: youtube_val,
-            ratings: await getRatings(politician_id, user.id),
+            ratings: await getRatings(politician_id, req.user.id),
           };
 
           // this is verbose ... but hmset doesn't take an array
@@ -464,7 +453,7 @@ async function whorepme(req, res) {
 
   if (ovi_config.DEBUG) console.log(JSON.stringify(resp));
 
-  wslog(req, 'whorepme', {lng: lng, lat: lat, address: req.body.address, user_id: user.id, error: error});
+  wslog(req, 'whorepme', {lng: lng, lat: lat, address: req.body.address, error: error});
   res.header('Access-Control-Allow-Origin', '*');
   res.send(resp);
 }
@@ -522,6 +511,21 @@ if (!ovi_config.DEBUG) {
     else next();
   });
 }
+
+// add req.user if there's a valid JWT
+app.use(function (req, res, next) {
+  req.user = {};
+  if (req.header('authorization')) {
+    try {
+      let token = req.header('authorization').split(' ')[1];;
+      req.user = jwt.decode(token);
+    } catch (e) {
+      console.log(e);
+      return res.status(401).send();
+    }
+  }
+  next();
+});
 
 // internal routes
 app.get('/poke', poke);
