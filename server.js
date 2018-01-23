@@ -305,7 +305,7 @@ async function getDivisionsFromGoogle(req) {
   if (ovi_config.DEBUG) console.log("Calling Google Civic API: "+url);
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {compress: true});
     const json = await response.json();
     return json;
   } catch (e) {
