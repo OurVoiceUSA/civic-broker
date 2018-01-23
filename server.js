@@ -109,8 +109,10 @@ async function dprofile(req, res) {
     // TODO: multi / exec for atomic
 
     if (req.body.party) {
+      // not using getUserParty here because we need to know if it's null
       let partyOld = await dbwrap('hgetAsync', 'user:'+req.user.id, 'party');
-      if (partyOld !== req.body.party) {
+      if (!partyOld || partyOld !== req.body.party) {
+        if (!partyOld) partyOld = 'I'; // need this set for first time ratings
         await dbwrap('hsetAsync', 'user:'+req.user.id, 'party', req.body.party);
 
         // fix party affiliations in all this user's ratings
