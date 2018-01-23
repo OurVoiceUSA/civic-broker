@@ -282,25 +282,19 @@ async function cimage(req, res) {
   apiProxy.web(req, res, {target: ovi_config.img_cache_url});
 }
 
-async function whorepme(req, res) {
-  var resp = {
-    cd: [],
-    sen: [],
-    sldl: [],
-    sldu: [],
-    other: [],
-  };
 
-  var error;
+async function getDivisionsFromGoogle(req) {
 
   let lng = Number.parseFloat(req.query.lng);
   let lat = Number.parseFloat(req.query.lat);
 
   if (isNaN(lng) || isNaN(lat)) {
-    resp = { msg: "Invalid input.", error: 1 };
-    wslog(req, 'whorepme', resp);
-    res.send(resp);
-    return;
+    return {
+      "error": {
+        "code": 400,
+        "message": "Invalid input."
+      }
+    };
   }
 
   var url = "https://www.googleapis.com/civicinfo/v2/representatives"+
@@ -313,22 +307,51 @@ async function whorepme(req, res) {
   try {
     const response = await fetch(url);
     const json = await response.json();
+    return json;
+  } catch (e) {
+    console.log(e);
+  }
+  return {
+    "error": {
+      "code": 400,
+      "message": "Unknown error."
+    }
+  };
+}
 
-    for (let div in json.divisions) {
+async function whorepme(req, res) {
+  var resp = {
+    cd: [],
+    sen: [],
+    sldl: [],
+    sldu: [],
+    other: [],
+  };
 
-      // if the last item of a division is a number, it's the district
-      let district = div.split(":").pop();
-      if (isNaN(district)) district = null;
+  const json = await getDivisionsFromGoogle(req);
 
-      for (let numo in json.divisions[div].officeIndices) {
-        let o = json.divisions[div].officeIndices[numo];
-        let office = json.offices[o];
+  if (json.error) {
+    resp = { msg: json.error.message, error: 1 };
+    wslog(req, 'whorepme', resp);
+    return res.send(json.error.code);
+  }
 
-        var incumbents = [];
-        for (let nump in office.officialIndices) {
-          let p = office.officialIndices[nump];
-          let official = json.officials[p];
+  for (let div in json.divisions) {
 
+    // if the last item of a division is a number, it's the district
+    let district = div.split(":").pop();
+    if (isNaN(district)) district = null;
+
+    for (let numo in json.divisions[div].officeIndices) {
+      let o = json.divisions[div].officeIndices[numo];
+      let office = json.offices[o];
+
+      var incumbents = [];
+      for (let nump in office.officialIndices) {
+        let p = office.officialIndices[nump];
+        let official = json.officials[p];
+
+        try {
           var last_name = official.name.split(" ").pop();
           var first_name = official.name.split(" ").shift();
 
@@ -402,58 +425,57 @@ async function whorepme(req, res) {
 
           incumbents.push(incumbent);
 
+        } catch(e) {
+          console.log(e);
         }
-
-        let of = {
-          key: div+':'+numo,
-          name: office.name,
-          state: json.normalizedInput.state,
-          type: (office.levels ? office.levels.join(" ") : null) ,
-          district: district,
-          incumbents: incumbents,
-          challengers: [],
-        };
-
-        if (office.levels) {
-          if (office.levels.includes('country')) {
-            if (office.name.match(/House of Representatives/)) {
-              of.title = "U.S. House of Representatives";
-              resp.cd.push(of);
-            }
-            else if (office.name.match(/Senate/)) {
-              of.title = "U.S. Senate";
-              resp.sen.push(of);
-            }
-            // else is other federal offices
-          }
-          else if (office.levels.includes('administrativeArea1')) {
-            if (office.name.match(/Senate/)) {
-              of.title = office.name.replace(/ District.*/, "");
-              resp.sldu.push(of);
-            }
-            else if (office.name.match(/House/) || office.name.match(/Assembly/) || office.name.match(/Delegate/)) {
-              of.title = office.name.replace(/ District.*/, "");
-              resp.sldl.push(of);
-            } else
-              resp.other.push(of);
-          }
-          else
-            resp.other.push(of);
-        } else {
-          resp.other.push(of);
-        }
-
       }
+
+      let of = {
+        key: div+':'+numo,
+        name: office.name,
+        state: json.normalizedInput.state,
+        type: (office.levels ? office.levels.join(" ") : null) ,
+        district: district,
+        incumbents: incumbents,
+        challengers: [],
+      };
+
+      if (office.levels) {
+        if (office.levels.includes('country')) {
+          if (office.name.match(/House of Representatives/)) {
+            of.title = "U.S. House of Representatives";
+            resp.cd.push(of);
+          }
+          else if (office.name.match(/Senate/)) {
+            of.title = "U.S. Senate";
+            resp.sen.push(of);
+          }
+          // else is other federal offices
+        }
+        else if (office.levels.includes('administrativeArea1')) {
+          if (office.name.match(/Senate/)) {
+            of.title = office.name.replace(/ District.*/, "");
+            resp.sldu.push(of);
+          }
+          else if (office.name.match(/House/) || office.name.match(/Assembly/) || office.name.match(/Delegate/)) {
+            of.title = office.name.replace(/ District.*/, "");
+            resp.sldl.push(of);
+          } else
+            resp.other.push(of);
+        }
+        else
+          resp.other.push(of);
+      } else {
+        resp.other.push(of);
+      }
+
     }
 
-  } catch (e) {
-    console.log(e);
-    error = 1;
   }
 
   if (ovi_config.DEBUG) console.log(JSON.stringify(resp));
 
-  wslog(req, 'whorepme', {lng: lng, lat: lat, address: req.body.address, error: error});
+  wslog(req, 'whorepme', {lng: req.query.lng, lat: req.query.lat, address: req.body.address});
   res.header('Access-Control-Allow-Origin', '*');
   res.send(resp);
 }
