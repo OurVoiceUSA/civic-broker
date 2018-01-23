@@ -133,9 +133,6 @@ async function dprofile(req, res) {
     }
 
     if (req.body.address && req.body.lng && req.body.lat) {
-      // get this user's address prior to update
-      var arr = await dbwrap('hmgetAsync', 'user:'+req.user.id, 'home_lng', 'home_lat');
-
       // set new address
       await dbwrap('hmsetAsync',
         'user:'+req.user.id,
@@ -144,12 +141,26 @@ async function dprofile(req, res) {
         'home_lat', req.body.lat
       );
 
+      let json = await getDivisionsFromGoogle(req);
+
+      if (json.error) {
+        resp = { msg: json.error.message, error: 1 };
+        wslog(req, 'dprofile', resp);
+        return res.send(json.error.code);
+      }
+
+      // delete / re-add divisions
+      await dbwrap('delAsync', 'user:'+req.user.id+':divisions');
+
+      for (let div in json.divisions)
+        await dbwrap('saddAsync', 'user:'+req.user.id+':divisions', div);
+
       // go through everyone this user has rated and see if they're still in the district
       var incumbents = await dbwrap('smembersAsync', 'user:'+req.user.id+':politician_ratings');
       var party = await getUserParty(req.user.id);
       for (let i = 0; i < incumbents.length; i++) {
         var rating;
-        if (await userInPolDistrict(incumbents[i], req.user.id, req.body.lng, req.body.lat)) {
+        if (await userInPolDistrict(incumbents[i], req.user.id)) {
           rating = await dbwrap('zscoreAsync', 'politician:'+incumbents[i]+':rating_outsider:'+party, req.user.id);
           if (rating) {
             await dbwrap('zremAsync', 'politician:'+incumbents[i]+':rating_outsider:'+party, req.user.id);
@@ -225,10 +236,10 @@ async function getUserParty(user_id) {
   return party;
 }
 
-async function userInPolDistrict(politician_id, user_id, lng, lat) {
-  // need to save districts on 'whorepme'
-
-  return false;
+async function userInPolDistrict(politician_id, user_id) {
+  let div = await dbwrap('hgetAsync', 'politician:'+politician_id, 'divisionId');
+  if (!div) return false;
+  return await dbwrap('sismemberAsync', 'user:'+user_id+':divisions', div);
 }
 
 async function politician_rate(req, res) {
@@ -239,8 +250,6 @@ async function politician_rate(req, res) {
   try {
     politician_id = req.body.politician_id;
     rating = req.body.rating;
-    let lng = req.body.lng;
-    let lat = req.body.lat;
 
     if (!politician_id || !req.user.id) {
       throw 'Invalid Input.';
@@ -249,8 +258,8 @@ async function politician_rate(req, res) {
     // rating is optional
     if (rating) {
       // keep track of which politicians this users has rated so we can cleanup if they change party or district
-      await dbwrap('sadd', 'user:'+req.user.id+':politician_ratings', politician_id);
-      if (await userInPolDistrict(politician_id, req.user.id, lng, lat))
+      await dbwrap('saddAsync', 'user:'+req.user.id+':politician_ratings', politician_id);
+      if (await userInPolDistrict(politician_id, req.user.id))
         await dbwrap('zaddAsync', 'politician:'+politician_id+':rating:'+await getUserParty(req.user.id), rating, req.user.id);
       else
         await dbwrap('zaddAsync', 'politician:'+politician_id+':rating_outsider:'+await getUserParty(req.user.id), rating, req.user.id);
@@ -285,8 +294,8 @@ async function cimage(req, res) {
 
 async function getDivisionsFromGoogle(req) {
 
-  let lng = Number.parseFloat(req.query.lng);
-  let lat = Number.parseFloat(req.query.lat);
+  let lng = Number.parseFloat((req.body.lng?req.body.lng:req.query.lng));
+  let lat = Number.parseFloat((req.body.lat?req.body.lat:req.query.lat));
 
   if (isNaN(lng) || isNaN(lat)) {
     return {
