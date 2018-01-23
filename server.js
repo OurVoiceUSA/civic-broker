@@ -24,7 +24,7 @@ const ovi_config = {
   api_key_google: ( process.env.API_KEY_GOOGLE ? process.env.API_KEY_GOOGLE : missingConfig("API_KEY_GOOGLE") ),
   img_cache_url: ( process.env.IMG_CACHE_URL ? process.env.IMG_CACHE_URL : null ),
   img_cache_opt: ( process.env.IMG_CACHE_OPT ? process.env.IMG_CACHE_OPT : null ),
-  DEBUG: ( process.env.DEBUG ? process.env.DEBUG : false ),
+  DEBUG: ( process.env.DEBUG ? true : false ),
 };
 
 // async'ify redis
