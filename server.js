@@ -538,9 +538,9 @@ app.use(expressLogging(logger));
 app.use(bodyParser.json());
 
 // require ip_header if config for it is set
-if (!ovi_config.DEBUG) {
+if (!ovi_config.DEBUG && ovi_config.ip_header) {
   app.use(function (req, res, next) {
-    if (ovi_config.ip_header && !req.header(ovi_config.ip_header)) {
+    if (!req.header(ovi_config.ip_header)) {
       console.log('Connection without '+ovi_config.ip_header+' header');
       res.status(400).send();
     }
