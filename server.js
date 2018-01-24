@@ -421,6 +421,7 @@ async function whorepme(req, res) {
 
           // this is verbose ... but hmset doesn't take an array
           rc.hmset('politician:'+politician_id,
+            'last_updated', (new Date).getTime(),
             'divisionId', incumbent.divisionId,
             'name', incumbent.name,
             'address', incumbent.address,
