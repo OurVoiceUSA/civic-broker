@@ -355,7 +355,7 @@ async function whorepme(req, res) {
 
     // if the last item of a division is a number, it's the district
     let district = div.split(":").pop();
-    if (isNaN(district)) district = null;
+    if (isNaN(district)) district = '';
 
     for (let numo in json.divisions[div].officeIndices) {
       let o = json.divisions[div].officeIndices[numo];
@@ -404,13 +404,13 @@ async function whorepme(req, res) {
             id: politician_id,
             divisionId: div,
             name: official.name,
-            address: address.line1+', '+address.city+', '+address.state+', '+address.zip,
-            phone: (official.phones ? official.phones[0] : null ),
-            email: (official.emails ? official.emails[0] : null ),
-            party: partyFull2Short(official.party),
+            address: ( Object.keys(address).length ? address.line1+', '+address.city+', '+address.state+', '+address.zip : '' ),
+            phone: (official.phones ? official.phones[0] : '' ),
+            email: (official.emails ? official.emails[0] : '' ),
+            party: ( official.party ? partyFull2Short(official.party) : '' ),
             state: json.normalizedInput.state,
             district: district,
-            url: (official.urls ? official.urls[0] : null ),
+            url: (official.urls ? official.urls[0] : '' ),
             photo_url: ((official.photoUrl && ovi_config.img_cache_url && ovi_config.img_cache_opt)?ovi_config.wsbase+'/images/'+politician_id+'.'+official.photoUrl.split(".").pop():(official.photoUrl)?official.photoUrl:''),
             facebook: facebook,
             twitter: twitter,
@@ -429,7 +429,7 @@ async function whorepme(req, res) {
             'email', incumbent.email,
             'party', incumbent.party,
             'url', incumbent.url,
-            'photo_url', official.photoUrl, // store the actual URL and not our cached
+            'photo_url', ( official.photoUrl ? official.photoUrl : '' ), // store the actual URL and not our cached
             'facebook', incumbent.facebook,
             'twitter', incumbent.twitter,
             'googleplus', incumbent.googleplus,
@@ -449,7 +449,7 @@ async function whorepme(req, res) {
         key: div+':'+numo,
         name: office.name,
         state: json.normalizedInput.state,
-        type: (office.levels ? office.levels.join(" ") : null) ,
+        type: (office.levels ? office.levels.join(" ") : '') ,
         district: district,
         incumbents: incumbents,
         challengers: [],
@@ -501,7 +501,7 @@ function partyFull2Short(partyFull) {
     case 'Democratic': return 'D';
     case 'Green': return 'G';
     case 'Libertarian': return 'L';
-    case 'Unknown': return null;
+    case 'Unknown': return '';
     case 'Independent': return 'I';
     default: return 'O';
   }
