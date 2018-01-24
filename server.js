@@ -15,6 +15,7 @@ import sha1 from 'sha1';
 import httpProxy from 'http-proxy';
 
 const ovi_config = {
+  server_port: ( process.env.SERVER_PORT ? process.env.SERVER_PORT : 8080 ),
   wsbase: ( process.env.WSBASE ? process.env.WSBASE : 'http://localhost:8080' ),
   ip_header: ( process.env.CLIENT_IP_HEADER ? process.env.CLIENT_IP_HEADER : null ),
   redis_host: ( process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost' ),
@@ -577,7 +578,7 @@ app.post('/api/v1/whorepme', whorepme);
 app.get('/api/v1/whorepme', whorepme);
 
 // Launch the server
-const server = app.listen(8080, () => {
+const server = app.listen(ovi_config.server_port, () => {
   const { address, port } = server.address();
   console.log('civic-broker express');
   console.log(`Listening at http://${address}:${port}`);
