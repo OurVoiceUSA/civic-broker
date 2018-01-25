@@ -399,6 +399,13 @@ async function whorepme(req, res) {
             }
           }
 
+          let photo_url = '';
+          if (official.photoUrl && ovi_config.img_cache_url && ovi_config.img_cache_opt) {
+            photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+official.photoUrl.split(".").pop();
+            // background task to have the image cache fetch it
+            fetch(ovi_config.img_cache_url+'/'+ovi_config.img_cache_opt+'/'+official.photoUrl);
+          }
+
           // transform google "offical" into OV "incumbent"
           var incumbent = {
             id: politician_id,
@@ -411,7 +418,7 @@ async function whorepme(req, res) {
             state: json.normalizedInput.state,
             district: district,
             url: (official.urls ? official.urls[0] : '' ),
-            photo_url: ((official.photoUrl && ovi_config.img_cache_url && ovi_config.img_cache_opt)?ovi_config.wsbase+'/images/'+politician_id+'.'+official.photoUrl.split(".").pop():(official.photoUrl)?official.photoUrl:''),
+            photo_url: photo_url,
             facebook: facebook,
             twitter: twitter,
             googleplus: googleplus,
