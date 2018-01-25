@@ -552,14 +552,18 @@ if (!ovi_config.DEBUG && ovi_config.ip_header) {
 // add req.user if there's a valid JWT
 app.use(function (req, res, next) {
   req.user = {};
-  if (req.header('authorization')) {
-    try {
-      let token = req.header('authorization').split(' ')[1];;
-      req.user = jwt.decode(token);
-    } catch (e) {
-      console.log(e);
-      return res.status(401).send();
-    }
+
+  // uri whitelist
+  if (['/poke'].includes(req.url)) return next();
+
+  if (!req.header('authorization')) return res.status(401).send();
+
+  try {
+    let token = req.header('authorization').split(' ')[1];;
+    req.user = jwt.decode(token);
+  } catch (e) {
+    console.log(e);
+    return res.status(401).send();
   }
   next();
 });
@@ -570,12 +574,10 @@ app.get('/poke', poke);
 // ws routes
 if (ovi_config.img_cache_url && ovi_config.img_cache_opt)
   app.get('/images/*', cimage);
-app.post('/api/v1/protected/dinfo', dinfo);
-app.post('/api/v1/protected/dprofile', dprofile);
-app.post('/api/v1/protected/politician_rate', politician_rate);
 app.post('/api/v1/dinfo', dinfo);
+app.post('/api/v1/dprofile', dprofile);
+app.post('/api/v1/politician_rate', politician_rate);
 app.post('/api/v1/whorepme', whorepme);
-app.get('/api/v1/whorepme', whorepme);
 
 // Launch the server
 const server = app.listen(ovi_config.server_port, () => {
