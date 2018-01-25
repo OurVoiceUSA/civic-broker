@@ -554,7 +554,7 @@ app.use(function (req, res, next) {
   req.user = {};
 
   // uri whitelist
-  if (['/poke'].includes(req.url)) return next();
+  if (req.url == '/poke' || req.url.match(/^\/images\//)) return next();
 
   if (!req.header('authorization')) return res.status(401).send();
 
