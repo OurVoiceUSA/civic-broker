@@ -566,8 +566,8 @@ app.use(function (req, res, next) {
   if (!req.header('authorization')) return res.status(401).send();
 
   try {
-    let token = req.header('authorization').split(' ')[1];;
-    req.user = jwt.decode(token);
+    let token = req.header('authorization').split(' ')[1];
+    req.user = jwt.verify(token, ovi_config.jwt_secret);
   } catch (e) {
     console.log(e);
     return res.status(401).send();
