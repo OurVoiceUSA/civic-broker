@@ -23,6 +23,7 @@ const ovi_config = {
   jwt_secret: ( process.env.JWS_SECRET ? process.env.JWS_SECRET : crypto.randomBytes(48).toString('hex') ),
   jwt_iss: ( process.env.JWS_ISS ? process.env.JWS_ISS : 'example.com' ),
   api_key_google: ( process.env.API_KEY_GOOGLE ? process.env.API_KEY_GOOGLE : missingConfig("API_KEY_GOOGLE") ),
+  api_key_openstates: ( process.env.API_KEY_OPENSTATES ? process.env.API_KEY_OPENSTATES : missingConfig("API_KEY_OPENSTATES") ),
   img_cache_url: ( process.env.IMG_CACHE_URL ? process.env.IMG_CACHE_URL : null ),
   img_cache_opt: ( process.env.IMG_CACHE_OPT ? process.env.IMG_CACHE_OPT : null ),
   DEBUG: ( process.env.DEBUG ? true : false ),
@@ -297,6 +298,27 @@ async function cimage(req, res) {
   apiProxy.web(req, res, {target: ovi_config.img_cache_url});
 }
 
+async function getStateLegsFromOpenstates(req) {
+
+  let lng = Number.parseFloat((req.body.lng?req.body.lng:req.query.lng));
+  let lat = Number.parseFloat((req.body.lat?req.body.lat:req.query.lat));
+
+  var url = "https://openstates.org/api/v1/legislators/geo/?lat="+lat+"&long="+lng;
+
+  try {
+    const response = await fetch(url, {compress: true, headers: {'X-API-KEY': ovi_config.api_key_openstates}});
+    const json = await response.json();
+    return json;
+  } catch (e) {
+    console.log(e);
+  }
+  return {
+    "error": {
+      "code": 400,
+      "message": "Unknown error."
+    }
+  };
+}
 
 async function getDivisionsFromGoogle(req) {
 
@@ -493,6 +515,69 @@ async function whorepme(req, res) {
 
     }
 
+  }
+
+  // no state legs? try openstates
+  if (resp.sldl.length == 0 || resp.sldu.length == 0) {
+    const jleg = await getStateLegsFromOpenstates(req);
+
+    for (let i in jleg) {
+      try {
+        let official = jleg[i];
+        if (!official.active) continue;
+      
+        var last_name = official.last_name.toLowerCase();
+        var first_name = official.first_name.toLowerCase();
+        let politician_id = sha1(official.boundary_id+":"+last_name+":"+first_name);
+
+        let photo_url = '';
+        if (official.photo_url && ovi_config.img_cache_url && ovi_config.img_cache_opt)
+          photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+official.photo_url.split(".").pop();
+
+         var incumbent = {
+          id: politician_id,
+          divisionId: official.boundary_id,
+          name: official.full_name,
+          address: ( Object.keys(official.offices).length ? official.offices[0].address : '' ),
+          phone: ( Object.keys(official.offices).length ? official.offices[0].phone : '' ),
+          email: ( official.email ? official.email : '' ),
+          party: ( official.party ? partyFull2Short(official.party) : '' ),
+          state: official.state.toUpperCase(),
+          district: official.district,
+          url: (official.url ? official.url : '' ),
+          photo_url: photo_url,
+          ratings: await getRatings(politician_id, req.user.id),
+        };
+
+        rc.hmset('politician:'+politician_id,
+          'last_updated', (new Date).getTime(),
+          'divisionId', incumbent.divisionId,
+          'name', incumbent.name,
+          'address', incumbent.address,
+          'phone', incumbent.phone,
+          'email', incumbent.email,
+          'party', incumbent.party,
+          'url', incumbent.url,
+          'photo_url', ( official.photo_url ? official.photo_url : '' ), // store the actual URL and not our cached
+        );
+        rc.sadd('division:'+incumbent.divisionId, politician_id);
+
+        let of = {
+          key: official.boundary_id+':'+(i+10),
+          name: incumbent.state+' State Legislative '+official.chamber+' House',
+          state: incumbent.state,
+          district: official.district,
+          incumbents: [incumbent],
+          challengers: [],
+        };
+
+        if (official.chamber == 'upper') resp.sldu.push(of);
+        else resp.sldl.push(of);
+
+      } catch(e) {
+        console.log(e);
+      }
+    }
   }
 
   if (ovi_config.DEBUG) console.log(JSON.stringify(resp));
