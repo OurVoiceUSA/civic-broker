@@ -334,20 +334,39 @@ async function getDivisionsFromGoogle(req) {
     };
   }
 
-  var url = "https://www.googleapis.com/civicinfo/v2/representatives"+
-    "?key="+ovi_config.api_key_google+
-    "&quotaUser="+getClientIP(req)+
-    "&address="+(req.body.address?req.body.address:lat+","+lng);
+  let url;
+  let response;
+  let json;
+  let retry = false;
 
-  if (ovi_config.DEBUG) console.log("Calling Google Civic API: "+url);
+  do {
 
-  try {
-    const response = await fetch(url, {compress: true});
-    const json = await response.json();
-    return json;
-  } catch (e) {
-    console.log(e);
-  }
+    url = "https://www.googleapis.com/civicinfo/v2/representatives"+
+      "?key="+ovi_config.api_key_google+
+      "&quotaUser="+getClientIP(req)+
+      "&address="+((!retry && req.body.address)?req.body.address:lat+","+lng);
+
+    if (ovi_config.DEBUG) console.log("Calling Google Civic API: "+url);
+
+    try {
+      response = await fetch(url, {compress: true});
+      json = await response.json();
+      if (json.error) {
+        if (retry) {
+          retry = false; // only retry once
+          console.log("Google Civic API threw another error, no retry");
+        } else {
+          retry = true;
+          console.log("Google Civic API threw an error, retrying with lng/lat");
+          continue;
+        }
+      }
+      return json;
+    } catch (e) {
+      console.log(e);
+    }
+  } while (retry);
+
   return {
     "error": {
       "code": 400,
