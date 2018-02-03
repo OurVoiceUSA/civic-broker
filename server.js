@@ -110,9 +110,9 @@ async function dprofile(req, res) {
 
     // TODO: multi / exec for atomic
 
-    if (req.body.party) {
-      // not using getUserParty here because we need to know if it's null
-      let partyOld = await dbwrap('hgetAsync', 'user:'+req.user.id, 'party');
+    // not using getUserParty here because we need to know if it's null
+    let partyOld = await dbwrap('hgetAsync', 'user:'+req.user.id, 'party');
+    if (req.body.party && partyOld != req.body.party) {
       if (!partyOld || partyOld !== req.body.party) {
         if (!partyOld) partyOld = 'I'; // need this set for first time ratings
         await dbwrap('hsetAsync', 'user:'+req.user.id, 'party', req.body.party);
@@ -138,11 +138,12 @@ async function dprofile(req, res) {
       }
     }
 
-    if (req.body.address && req.body.lng && req.body.lat) {
+    let home_address = await dbwrap('hgetAsync', 'user:'+req.user.id, 'home_address');
+    if (req.body.address && req.body.address != home_address && req.body.lng && req.body.lat) {
       // set new address
       await dbwrap('hmsetAsync',
         'user:'+req.user.id,
-        'home_address', req.body.address, 
+        'home_address', req.body.address,
         'home_lng', req.body.lng,
         'home_lat', req.body.lat
       );
