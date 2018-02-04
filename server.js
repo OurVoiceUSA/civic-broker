@@ -548,6 +548,8 @@ async function whorepme(req, res) {
       
         var last_name = official.last_name.toLowerCase();
         var first_name = official.first_name.toLowerCase();
+
+        // TODO: official.boundary_id is NULL for Washington DC
         let politician_id = sha1(official.boundary_id+":"+last_name+":"+first_name);
 
         let photo_url = '';
