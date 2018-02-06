@@ -64,6 +64,13 @@ async function dbwrap() {
     return rc[func](params);
 }
 
+function cleanobj(obj) {
+  for (var propName in obj) {
+    if (obj[propName] == '' || obj[propName] == null)
+      delete obj[propName];
+  }
+}
+
 function getClientIP(req) {
   if (ovi_config.ip_header) return req.header(ovi_config.ip_header);
   else return req.connection.remoteAddress;
@@ -448,8 +455,11 @@ async function whorepme(req, res) {
             fetch(ovi_config.img_cache_url+'/'+ovi_config.img_cache_opt+'/'+official.photoUrl);
           }
 
+          // TODO: hmset googlecivics:politician_id official
+          // TODO: rather than transform google to offical directly, gather each OV "incumbent" from API cache hierarchy
+
           // transform google "offical" into OV "incumbent"
-          var incumbent = {
+          let incumbent = {
             id: politician_id,
             divisionId: div,
             name: official.name,
@@ -460,33 +470,21 @@ async function whorepme(req, res) {
             state: json.normalizedInput.state,
             district: district,
             url: (official.urls ? official.urls[0] : '' ),
-            photo_url: photo_url,
+            photo_url: ( official.photoUrl ? official.photoUrl : '' ), // store the actual URL and not our cached
             facebook: facebook,
             twitter: twitter,
             googleplus: googleplus,
             [youtube_key]: youtube_val,
-            ratings: await getRatings(politician_id, req.user.id),
+            last_updated: (new Date).getTime(),
           };
 
-          // this is verbose ... but hmset doesn't take an array
-          rc.hmset('politician:'+politician_id,
-            'last_updated', (new Date).getTime(),
-            'divisionId', incumbent.divisionId,
-            'name', incumbent.name,
-            'address', incumbent.address,
-            'phone', incumbent.phone,
-            'email', incumbent.email,
-            'party', incumbent.party,
-            'url', incumbent.url,
-            'photo_url', ( official.photoUrl ? official.photoUrl : '' ), // store the actual URL and not our cached
-            'facebook', incumbent.facebook,
-            'twitter', incumbent.twitter,
-            'googleplus', incumbent.googleplus,
-            youtube_key, incumbent[youtube_key]
-          );
+          cleanobj(incumbent);
 
-          rc.sadd('division:'+div, politician_id);
+          rc.hmset('politician:'+politician_id, incumbent);
+          rc.sadd('division:'+div+':politicians', politician_id);
 
+          incumbent.photo_url = photo_url; // pass the cached photo
+          incumbent.ratings = await getRatings(politician_id, req.user.id);
           incumbents.push(incumbent);
 
         } catch(e) {
@@ -582,7 +580,7 @@ async function whorepme(req, res) {
           'url', incumbent.url,
           'photo_url', ( official.photo_url ? official.photo_url : '' ), // store the actual URL and not our cached
         );
-        rc.sadd('division:'+incumbent.divisionId, politician_id);
+        rc.sadd('division:'+incumbent.divisionId+':politicians', politician_id);
 
         let of = {
           key: official.boundary_id+':'+(i+10),
