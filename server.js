@@ -2,6 +2,7 @@
 import express from 'express';
 import expressLogging from 'express-logging';
 import expressAsync from 'express-async-await';
+import cors from 'cors';
 import crypto from 'crypto';
 import logger from 'logops';
 import redis from 'redis';
@@ -603,7 +604,6 @@ async function whorepme(req, res) {
   if (ovi_config.DEBUG) console.log(JSON.stringify(resp));
 
   wslog(req, 'whorepme', {lng: req.query.lng, lat: req.query.lat, address: req.body.address});
-  res.header('Access-Control-Allow-Origin', '*');
   res.send(resp);
 }
 
@@ -634,6 +634,7 @@ const apiProxy = httpProxy.createProxyServer();
 app.disable('x-powered-by');
 app.use(expressLogging(logger));
 app.use(bodyParser.json());
+app.use(cors());
 
 // require ip_header if config for it is set
 if (!ovi_config.DEBUG && ovi_config.ip_header) {
@@ -648,6 +649,8 @@ if (!ovi_config.DEBUG && ovi_config.ip_header) {
 
 // add req.user if there's a valid JWT
 app.use(function (req, res, next) {
+  if (req.method == 'OPTIONS') return next(); // skip OPTIONS requests
+
   req.user = {};
 
   // uri whitelist
