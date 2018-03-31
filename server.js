@@ -312,6 +312,8 @@ async function getStateLegsFromOpenstates(req) {
   let lng = Number.parseFloat((req.body.lng?req.body.lng:req.query.lng));
   let lat = Number.parseFloat((req.body.lat?req.body.lat:req.query.lat));
 
+  if (!lng || !lat) return [];
+
   var url = "https://openstates.org/api/v1/legislators/geo/?lat="+lat+"&long="+lng;
 
   try {
@@ -333,8 +335,9 @@ async function getDivisionsFromGoogle(req) {
 
   let lng = Number.parseFloat((req.body.lng?req.body.lng:req.query.lng));
   let lat = Number.parseFloat((req.body.lat?req.body.lat:req.query.lat));
+  let address = (req.body.address?req.body.address:req.query.address);
 
-  if (isNaN(lng) || isNaN(lat)) {
+  if ((lng || lat) && (isNaN(lng) || isNaN(lat))) {
     return {
       "error": {
         "code": 400,
@@ -350,10 +353,12 @@ async function getDivisionsFromGoogle(req) {
 
   do {
 
+    // TODO: if retry and no lng/lat, call geocode API as a last ditch attempt
+
     url = "https://www.googleapis.com/civicinfo/v2/representatives"+
       "?key="+ovi_config.api_key_google+
       "&quotaUser="+getClientIP(req)+
-      "&address="+((!retry && req.body.address)?req.body.address:lat+","+lng);
+      "&address="+((!retry && address)?address:lat+","+lng);
 
     if (ovi_config.DEBUG) console.log("Calling Google Civic API: "+url);
 
@@ -363,10 +368,10 @@ async function getDivisionsFromGoogle(req) {
       if (json.error) {
         if (retry) {
           retry = false; // only retry once
-          console.log("Google Civic API threw another error, no retry");
+          console.log("Google Civic API threw an error on lng/lat, no retry");
         } else {
           retry = true;
-          console.log("Google Civic API threw an error, retrying with lng/lat");
+          console.log("Google Civic API threw an error on address, retrying with lng/lat");
           continue;
         }
       }
