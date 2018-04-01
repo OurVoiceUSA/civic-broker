@@ -626,6 +626,7 @@ async function search(req, res) {
   str = str.replace('district', '');
   str = str.replace('legislative', '');
   str = str.replace('general', '');
+  str = str.replace('party', '');
 
   let results = [];
   let items = str.split(" ");
@@ -639,6 +640,10 @@ async function search(req, res) {
 
     let item = items[i];
     if (!item) continue; // skip if empty
+
+    // it's party time!
+    let party = partyFull2Short(item);
+    if (party && party != 'O') item = party.toLowerCase();
 
     let sr = '*'+item+'*';
     if (item.length < 4 && item != 'new') sr = item; // don't wildcard short search terms
@@ -698,13 +703,14 @@ async function search(req, res) {
 }
 
 function partyFull2Short(partyFull) {
-  switch (partyFull) {
-    case 'Republican': return 'R';
-    case 'Democratic': return 'D';
-    case 'Green': return 'G';
-    case 'Libertarian': return 'L';
-    case 'Unknown': return '';
-    case 'Independent': return 'I';
+  switch (partyFull.toLowerCase()) {
+    case 'republican': return 'R';
+    case 'democrat': return 'D';
+    case 'democratic': return 'D';
+    case 'green': return 'G';
+    case 'libertarian': return 'L';
+    case 'unknown': return '';
+    case 'independent': return 'I';
     default: return 'O';
   }
 }
