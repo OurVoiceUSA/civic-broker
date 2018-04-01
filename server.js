@@ -630,6 +630,9 @@ async function search(req, res) {
   str = str.replace('general', '');
   str = str.replace('party', '');
 
+  // nice try...
+  str = str.replace('*', '');
+
   let results = [];
   let items = str.split(" ");
   let done = false;
