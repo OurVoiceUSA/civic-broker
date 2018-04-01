@@ -777,7 +777,7 @@ app.post('/api/v1/dinfo', dinfo);
 app.post('/api/v1/dprofile', dprofile);
 app.post('/api/v1/politician_rate', politician_rate);
 app.post('/api/v1/whorepme', whorepme);
-app.post('/api/v1/search', search);
+app.get('/api/v1/search', search);
 
 // Launch the server
 const server = app.listen(ovi_config.server_port, () => {
