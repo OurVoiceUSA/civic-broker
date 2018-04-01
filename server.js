@@ -624,7 +624,7 @@ async function search(req, res) {
   for (let i in items) {
     let item = items[i];
     let sr = '*'+item+'*';
-    if (item.length < 4) sr = item; // don't wildcard short search terms
+    if (item.length < 4 && item != 'new') sr = item; // don't wildcard short search terms
     let keys = await dbwrap('keysAsync', 'zindex:'+sr);
 
     let cur_set = [];
