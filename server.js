@@ -704,6 +704,13 @@ async function search(req, res) {
   }
 
   wslog(req, 'search', {str: req.query.str});
+
+  switch (items[0]) {
+    case 'tesla':
+    case 'spacex':
+      resp = [{first_name: 'Elon', last_name: 'Musk', twitter: 'elonmusk', office: 'Private Sector Tech Big Wig'}];
+  }
+
   res.send(resp);
 }
 
