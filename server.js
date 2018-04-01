@@ -612,6 +612,67 @@ async function whorepme(req, res) {
   res.send(resp);
 }
 
+async function search(req, res) {
+  var resp = { results: [] };
+
+  let str = req.query.str.replace(/(?:\r\n|\r|\n|\t|"|\\|)/g, '').toLowerCase()
+
+  let results = [];
+  let items = str.split(" ");
+
+  let idx = 0;
+  for (let i in items) {
+    let item = items[i];
+    let sr = '*'+item+'*';
+    if (item.length < 4) sr = item; // don't wildcard short search terms
+    let keys = await dbwrap('keysAsync', 'zindex:'+sr);
+
+    let cur_set = [];
+
+    for (let k in keys) {
+      let key = keys[k];
+      let vals = await rc.smembersAsync(key);
+       for (let v in vals) {
+        let val = vals[v];
+
+        // in the first run, put all keys in results
+        if (idx == 0 && !results.includes(val)) results.push(val);
+        else cur_set.push(val);
+      }
+    }
+
+    // every run but the first, splice out the ID from results if it isn't in the current set
+    if (idx > 0) {
+      let trem = [];
+
+      for (let r in results) {
+        let cur = results[r];
+        if (!cur_set.includes(cur)) {
+          if (!trem.includes(cur)) trem.push(cur);
+        }
+      }
+
+      for (let r in trem) {
+        let rem = trem[r];
+        results.splice(results.indexOf(rem), 1);
+      }
+    }
+
+    idx++;
+  }
+
+  for (let r in results) {
+    let politician_id = results[r];
+    // TODO: merge data from all sources for a full politician profile
+    let pol = await rc.hgetallAsync('politician:'+politician_id);
+    pol.id = politician_id;
+    resp.results.push(pol)
+  }
+
+  wslog(req, 'search', {str: req.query.str});
+  res.send(resp);
+}
+
 function partyFull2Short(partyFull) {
   switch (partyFull) {
     case 'Republican': return 'R';
@@ -683,6 +744,7 @@ app.post('/api/v1/dinfo', dinfo);
 app.post('/api/v1/dprofile', dprofile);
 app.post('/api/v1/politician_rate', politician_rate);
 app.post('/api/v1/whorepme', whorepme);
+app.post('/api/v1/search', search);
 
 // Launch the server
 const server = app.listen(ovi_config.server_port, () => {
