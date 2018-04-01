@@ -617,12 +617,29 @@ async function search(req, res) {
 
   let str = req.query.str.replace(/(?:\r\n|\r|\n|\t|"|\\|)/g, '').toLowerCase()
 
+  // alias broad search terms to narrow them down
+  str = str.replace('state house', 'sldl');
+  str = str.replace('state assembly', 'sldl');
+  str = str.replace('state senate', 'sldu');
+
+  // remove redundant terms
+  str = str.replace('district', '');
+  str = str.replace('legislative', '');
+  str = str.replace('general', '');
+
   let results = [];
   let items = str.split(" ");
+  let done = false;
+
+  if (items.length > 5) return res.status(400).send({msg: 'Too many search words.'});
 
   let idx = 0;
   for (let i in items) {
+    if (done) continue;
+
     let item = items[i];
+    if (!item) continue; // skip if empty
+
     let sr = '*'+item+'*';
     if (item.length < 4 && item != 'new') sr = item; // don't wildcard short search terms
     let keys = await dbwrap('keysAsync', 'zindex:'+sr);
@@ -656,10 +673,17 @@ async function search(req, res) {
         let rem = trem[r];
         results.splice(results.indexOf(rem), 1);
       }
+
+      // down to zero results? bail early
+      if (results.length == 0) done = true;
+
     }
 
     idx++;
   }
+
+  // TODO: paginate
+  if (results.length > 500) return res.status(400).send({msg: 'Too many results, please refine your search.'});
 
   for (let r in results) {
     let politician_id = results[r];
