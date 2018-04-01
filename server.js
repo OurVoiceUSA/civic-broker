@@ -703,7 +703,7 @@ async function search(req, res) {
     resp.results.push(pol)
   }
 
-  wslog(req, 'search', {str: req.query.str});
+  wslog(req, 'search', {num: results.length, str: req.query.str});
 
   switch (items[0]) {
     case 'tesla':
