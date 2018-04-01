@@ -27,6 +27,7 @@ const ovi_config = {
   api_key_openstates: ( process.env.API_KEY_OPENSTATES ? process.env.API_KEY_OPENSTATES : missingConfig("API_KEY_OPENSTATES") ),
   img_cache_url: ( process.env.IMG_CACHE_URL ? process.env.IMG_CACHE_URL : null ),
   img_cache_opt: ( process.env.IMG_CACHE_OPT ? process.env.IMG_CACHE_OPT : null ),
+  require_auth: ( process.env.AUTH_OPTIONAL ? false : true ),
   DEBUG: ( process.env.DEBUG ? true : false ),
 };
 
@@ -752,14 +753,16 @@ app.use(function (req, res, next) {
   // uri whitelist
   if (req.url == '/poke' || req.url.match(/^\/images\//)) return next();
 
-  if (!req.header('authorization')) return res.status(401).send();
+  if (ovi_config.require_auth && !req.header('authorization')) return res.status(401).send();
 
   try {
     let token = req.header('authorization').split(' ')[1];
     req.user = jwt.verify(token, ovi_config.jwt_secret);
   } catch (e) {
-    console.log(e);
-    return res.status(401).send();
+    if (ovi_config.require_auth) {
+      console.log(e);
+      return res.status(401).send();
+    }
   }
   next();
 });
