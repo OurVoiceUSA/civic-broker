@@ -390,6 +390,61 @@ async function getDivisionsFromGoogle(req) {
   };
 }
 
+function findPropFromObjs(prop, objs) {
+  for (let o in objs) {
+    let obj = objs[o];
+    if (obj.hasOwnProperty(prop)) return obj[prop];
+  }
+  return null;
+}
+
+async function getInfoFromPolId(politician_id) {
+
+  let pol = await rc.hgetallAsync('politician:'+politician_id);
+  pol.id = politician_id;
+
+  let fec = {};
+  let os = {};
+  let ep = {};
+  let uslc = {};
+
+  if (pol.fec_candidate_id)
+    fec = await dbwrap('hgetallAsync', 'fec:'+pol.fec_candidate_id);
+
+  if (pol.openstates_id)
+    os = await dbwrap('hgetallAsync', 'openstates:'+pol.openstates_id);
+
+  if (pol.everypolitician_id)
+    ep = await dbwrap('hgetallAsync', 'everypolitician:'+pol.everypolitician_id);
+
+  if (pol.uslc_id)
+    uslc = await dbwrap('hgetallAsync', 'uslc:'+pol.uslc_id);
+
+  let props = [
+    'divisionId', 'name', 'first_name', 'last_name', 'address', 'phone', 'email', 'party',
+    'state', 'district', 'url', 'photo_url', 'facebook', 'twitter', 'googleplus', 'youtube',
+    'youtube_id', 'office',
+  ];
+
+  for (let p in props) {
+    let prop = props[p];
+    if (!pol[prop]) pol[prop] = findPropFromObjs(prop, [fec, os, ep, uslc]);
+  }
+
+  // fill in high profile props
+
+  if ((pol.name && pol.name.indexOf(',') !== -1) || !pol.name) pol.name = pol.first_name+' '+pol.last_name;
+
+  if (pol.photo_url && ovi_config.img_cache_url && ovi_config.img_cache_opt) {
+    let photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+pol.photo_url.split(".").pop();
+    // background task to have the image cache fetch it
+    fetch(ovi_config.img_cache_url+'/'+ovi_config.img_cache_opt+'/'+pol.photo_url).catch(e => {});
+    pol.photo_url = photo_url;
+  }
+
+  return pol;
+}
+
 async function whorepme(req, res) {
   var resp = {
     cd: [],
@@ -459,7 +514,7 @@ async function whorepme(req, res) {
           if (official.photoUrl && ovi_config.img_cache_url && ovi_config.img_cache_opt) {
             photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+official.photoUrl.split(".").pop();
             // background task to have the image cache fetch it
-            fetch(ovi_config.img_cache_url+'/'+ovi_config.img_cache_opt+'/'+official.photoUrl);
+            fetch(ovi_config.img_cache_url+'/'+ovi_config.img_cache_opt+'/'+official.photoUrl).catch(e => {});
           }
 
           // TODO: hmset googlecivics:politician_id official
@@ -698,8 +753,8 @@ async function search(req, res) {
   for (let r in results) {
     let politician_id = results[r];
     // TODO: merge data from all sources for a full politician profile
-    let pol = await rc.hgetallAsync('politician:'+politician_id);
-    pol.id = politician_id;
+    let pol = await getInfoFromPolId(politician_id);
+    //pol.id = politician_id;
     resp.results.push(pol)
   }
 
