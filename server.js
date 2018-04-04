@@ -407,22 +407,38 @@ async function getInfoFromPolId(politician_id) {
     return {};
   }
 
+  pol.data_sources = [];
+
+  let gc = {};
   let fec = {};
   let os = {};
   let ep = {};
   let uslc = {};
 
-  if (pol.fec_candidate_id)
+  if (pol.googlecivics_id) {
+    fec = await dbwrap('hgetallAsync', 'googlecivics:'+politician_id);
+    pol.data_sources.push('googlecivics');
+  }
+
+  if (pol.fec_candidate_id) {
     fec = await dbwrap('hgetallAsync', 'fec:'+pol.fec_candidate_id);
+    pol.data_sources.push('fec');
+  }
 
-  if (pol.openstates_id)
+  if (pol.openstates_id) {
     os = await dbwrap('hgetallAsync', 'openstates:'+pol.openstates_id);
+    pol.data_sources.push('openstates');
+  }
 
-  if (pol.everypolitician_id)
+  if (pol.everypolitician_id) {
     ep = await dbwrap('hgetallAsync', 'everypolitician:'+pol.everypolitician_id);
+    pol.data_sources.push('everypolitician');
+  }
 
-  if (pol.uslc_id)
+  if (pol.uslc_id) {
     uslc = await dbwrap('hgetallAsync', 'uslc:'+pol.uslc_id);
+    pol.data_sources.push('uslc');
+  }
 
   let props = [
     'divisionId', 'name', 'first_name', 'last_name', 'address', 'phone', 'email', 'party',
