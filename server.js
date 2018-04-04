@@ -401,7 +401,7 @@ async function getInfoFromPolId(politician_id) {
   let pol;
 
   try {
-    pol = await rc.hgetallAsync('politician:'+politician_id);
+    pol = await dbwrap('hgetallAsync', 'politician:'+politician_id);
     pol.id = politician_id;
   } catch (e) {
     return {};
