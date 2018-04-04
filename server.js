@@ -298,13 +298,12 @@ async function politician_rate(req, res) {
 
 async function cimage(req, res) {
   let img = req.url.split("/").pop();
-  let politician_id = img.split(".").shift();
-  let photo_url = await dbwrap('hgetAsync', 'politician:'+politician_id, 'photo_url');
+  let pol = await getInfoFromPolId(img.split(".").shift())
 
-  if (!photo_url) return res.sendStatus(404);
+  if (!pol.photo_url_src) return res.sendStatus(404);
 
-  res.header('x-source-url', photo_url);
-  req.url = '/'+ovi_config.img_cache_opt+'/'+photo_url;
+  res.header('x-source-url', pol.photo_url_src);
+  req.url = '/'+ovi_config.img_cache_opt+'/'+pol.photo_url_src;
   apiProxy.web(req, res, {target: ovi_config.img_cache_url});
 }
 
@@ -399,9 +398,14 @@ function findPropFromObjs(prop, objs) {
 }
 
 async function getInfoFromPolId(politician_id) {
+  let pol;
 
-  let pol = await rc.hgetallAsync('politician:'+politician_id);
-  pol.id = politician_id;
+  try {
+    pol = await rc.hgetallAsync('politician:'+politician_id);
+    pol.id = politician_id;
+  } catch (e) {
+    return {};
+  }
 
   let fec = {};
   let os = {};
@@ -439,6 +443,7 @@ async function getInfoFromPolId(politician_id) {
     let photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+pol.photo_url.split(".").pop();
     // background task to have the image cache fetch it
     fetch(ovi_config.img_cache_url+'/'+ovi_config.img_cache_opt+'/'+pol.photo_url).catch(e => {});
+    pol.photo_url_src = pol.photo_url;
     pol.photo_url = photo_url;
   }
 
