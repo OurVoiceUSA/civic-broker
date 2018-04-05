@@ -455,17 +455,25 @@ async function getInfoFromPolId(politician_id) {
 
   for (let p in props) {
     let prop = props[p];
-    if (!pol[prop]) pol[prop] = findPropFromObjs(prop, [gc, fec, os, ep, uslc]);
+    if (!pol[prop]) pol[prop] = findPropFromObjs(prop, [gc, fec, os, ep, uslc, cfar]);
   }
 
   // fill in high profile props
 
-  if ((pol.name && pol.name.indexOf(',') !== -1) || !pol.name) pol.name = pol.first_name+' '+pol.last_name;
+  if ((pol.name && pol.name.indexOf(',') !== -1) || !pol.name) {
+    if (pol.first_name)
+      pol.name = pol.first_name+' '+pol.last_name;
+    else if (cfar.firstname)
+      pol.name = cfar.firstname+' '+cfar.lastname; // TODO: this is a hack, real fix is to concat the objs together first
+  }
 
   if (!pol.photo_url) {
     if (ep.image) pol.photo_url = ep.image;
     else if (uslc.bioguide) pol.photo_url = 'https://theunitedstates.io/images/congress/230x281/'+uslc.bioguide+'.jpg';
   }
+
+  if (pol.divisionId)
+    pol.divisionName = await dbwrap('hmgetAsync', 'division:'+pol.divisionId, 'name');
 
   if (pol.photo_url && ovi_config.img_cache_url && ovi_config.img_cache_opt) {
     let photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+pol.photo_url.split(".").pop();
