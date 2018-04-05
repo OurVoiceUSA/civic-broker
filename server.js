@@ -455,6 +455,11 @@ async function getInfoFromPolId(politician_id) {
 
   if ((pol.name && pol.name.indexOf(',') !== -1) || !pol.name) pol.name = pol.first_name+' '+pol.last_name;
 
+  if (!pol.photo_url) {
+    if (ep.image) pol.photo_url = ep.image;
+    else if (uslc.bioguide) pol.photo_url = 'https://theunitedstates.io/images/congress/230x281/'+uslc.bioguide+'.jpg';
+  }
+
   if (pol.photo_url && ovi_config.img_cache_url && ovi_config.img_cache_opt) {
     let photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+pol.photo_url.split(".").pop();
     // background task to have the image cache fetch it
