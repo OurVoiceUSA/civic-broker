@@ -414,6 +414,7 @@ async function getInfoFromPolId(politician_id) {
   let os = {};
   let ep = {};
   let uslc = {};
+  let cfar = {};
 
   if (pol.googlecivics_id) {
     gc = await dbwrap('hgetallAsync', 'googlecivics:'+politician_id);
@@ -438,6 +439,12 @@ async function getInfoFromPolId(politician_id) {
   if (pol.uslc_id) {
     uslc = await dbwrap('hgetallAsync', 'uslc:'+pol.uslc_id);
     pol.data_sources.push('uslc');
+  }
+
+  // TODO: create table for orgs with integrated links
+  if (pol.cfar_id) {
+    cfar = await dbwrap('hgetallAsync', 'cfar:'+politician_id);
+    pol.data_sources.push('cfar');
   }
 
   let props = [
