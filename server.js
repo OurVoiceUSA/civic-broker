@@ -416,7 +416,7 @@ async function getInfoFromPolId(politician_id) {
   let uslc = {};
 
   if (pol.googlecivics_id) {
-    fec = await dbwrap('hgetallAsync', 'googlecivics:'+politician_id);
+    gc = await dbwrap('hgetallAsync', 'googlecivics:'+politician_id);
     pol.data_sources.push('googlecivics');
   }
 
@@ -448,7 +448,7 @@ async function getInfoFromPolId(politician_id) {
 
   for (let p in props) {
     let prop = props[p];
-    if (!pol[prop]) pol[prop] = findPropFromObjs(prop, [fec, os, ep, uslc]);
+    if (!pol[prop]) pol[prop] = findPropFromObjs(prop, [gc, fec, os, ep, uslc]);
   }
 
   // fill in high profile props
@@ -538,9 +538,6 @@ async function whorepme(req, res) {
             fetch(ovi_config.img_cache_url+'/'+ovi_config.img_cache_opt+'/'+official.photoUrl).catch(e => {});
           }
 
-          // TODO: hmset googlecivics:politician_id official
-          // TODO: rather than transform google to offical directly, gather each OV "incumbent" from API cache hierarchy
-
           // transform google "offical" into OV "incumbent"
           let incumbent = {
             id: politician_id,
@@ -564,10 +561,11 @@ async function whorepme(req, res) {
 
           cleanobj(incumbent);
 
-          rc.hmset('politician:'+politician_id, incumbent);
+          rc.hmset('politician:'+politician_id, 'googlecivics_id', politician_id);
+          rc.hmset('googlecivics:'+politician_id, incumbent);
           rc.sadd('division:'+div+':politicians', politician_id);
 
-          incumbent.photo_url = photo_url; // pass the cached photo
+          incumbent = await getInfoFromPolId(politician_id);
           incumbent.ratings = await getRatings(politician_id, req.user.id);
           incumbents.push(incumbent);
 
