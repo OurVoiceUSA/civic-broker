@@ -432,6 +432,18 @@ function getInfoFromDataSource(pol, src) {
 }
 
 function findPropFromObjs(prop, objs) {
+
+  // TODO: this is inefficient ... but it works for now
+
+  let first = ['googlecivics', 'openstates', 'fec'];
+
+  // look here first
+  for (let f in first) {
+    let ref = first[f];
+    if (objs[ref] && objs[ref].hasOwnProperty(prop)) return objs[ref][prop];
+  }
+
+  // search through the rest
   for (let o in objs) {
     let obj = objs[o];
     if (obj.hasOwnProperty(prop)) return obj[prop];
@@ -441,7 +453,7 @@ function findPropFromObjs(prop, objs) {
 
 async function getInfoFromPolId(politician_id) {
   let refs;
-  let objs = [];
+  let objs = {};
   let pol = {
     id: politician_id,
     data_sources: [],
@@ -466,13 +478,12 @@ async function getInfoFromPolId(politician_id) {
 
     let src = ref.split(':')[0];
     let obj = await rc.hgetallAsync(ref);
-    objs.push(obj);
+    objs[src] = obj;
     pol.data_sources.push(getInfoFromDataSource(obj, src));
   }
 
   for (let p in props) {
     let prop = props[p];
-    // TODO: sort objs based on weighted priority (googlecivics first, openstates second, etc)
     if (!pol[prop]) pol[prop] = findPropFromObjs(prop, objs);
   }
 
