@@ -312,6 +312,8 @@ async function getStateLegsFromOpenstates(req) {
   let lng = Number.parseFloat((req.body.lng?req.body.lng:req.query.lng));
   let lat = Number.parseFloat((req.body.lat?req.body.lat:req.query.lat));
 
+  // TODO: if no lng/lat - call google web API based on address
+
   if (!lng || !lat) return [];
 
   var url = "https://openstates.org/api/v1/legislators/geo/?lat="+lat+"&long="+lng;
