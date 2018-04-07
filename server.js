@@ -450,7 +450,7 @@ function findPropFromObjs(prop, objs) {
   // search through the rest
   for (let o in objs) {
     let obj = objs[o];
-    if (obj.hasOwnProperty(prop)) return obj[prop];
+    if (obj && obj.hasOwnProperty(prop)) return obj[prop];
   }
   return null;
 }
