@@ -391,6 +391,44 @@ async function getDivisionsFromGoogle(req) {
   };
 }
 
+function getInfoFromDataSource(pol, src) {
+  let obj = {
+    key: src,
+  };
+
+  switch (src) {
+    case 'googlecivics':
+      obj.name = 'Google Civics';
+      obj.url = 'https://developers.google.com/civic-information/';
+      break;
+    case 'openstates':
+      obj.name = 'Openstates';
+      obj.url = 'https://openstates.org/'+pol.state+'/legislators/'+pol.id+'/';
+      break;
+    case 'everypolitician':
+      obj.name = 'EveryPolitician';
+      obj.url = 'http://everypolitician.org/united-states-of-america/';
+      break;
+    case 'fec':
+      obj.name = 'Federal Election Commission';
+      obj.url = 'https://www.fec.gov/data/candidate/'+pol.candidate_id+'/';
+      break;
+    case 'uslc':
+      obj.name = 'The @unitedstates Project';
+      obj.url = 'https://theunitedstates.io/';
+      break;
+    case 'cfar':
+      obj.name = 'Contract For American Renewal (CFAR)';
+      obj.url = 'https://twitter.com/CFAR_2018';
+      break;
+    default:
+      obj.name = src;
+      break;
+  }
+
+  return obj;
+}
+
 function findPropFromObjs(prop, objs) {
   for (let o in objs) {
     let obj = objs[o];
@@ -425,8 +463,9 @@ async function getInfoFromPolId(politician_id) {
     let ref = refs[r];
 
     let src = ref.split(':')[0];
-    objs.push(await rc.hgetallAsync(ref));
-    pol.data_sources.push(src);
+    let obj = await rc.hgetallAsync(ref);
+    objs.push(obj);
+    pol.data_sources.push(getInfoFromDataSource(obj, src));
   }
 
   for (let p in props) {
