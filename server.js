@@ -253,9 +253,9 @@ async function getUserParty(user_id) {
 }
 
 async function userInPolDistrict(politician_id, user_id) {
-  let div = await dbwrap('hgetAsync', 'politician:'+politician_id, 'divisionId');
-  if (!div) return false;
-  return await dbwrap('sismemberAsync', 'user:'+user_id+':divisions', div);
+  let pol = await getInfoFromPolId(politician_id);
+  if (!pol.divisionId) return false;
+  return await dbwrap('sismemberAsync', 'user:'+user_id+':divisions', pol.divisionId);
 }
 
 async function politician_rate(req, res) {
@@ -398,78 +398,51 @@ function findPropFromObjs(prop, objs) {
 }
 
 async function getInfoFromPolId(politician_id) {
-  let pol;
+  let refs;
+  let objs = [];
+  let pol = {
+    id: politician_id,
+    data_sources: [],
+  };
+  let props = [
+    // desired props
+    'divisionId', 'name', 'first_name', 'last_name', 'address', 'phone', 'email', 'party',
+    'state', 'district', 'url', 'photo_url', 'facebook', 'twitter', 'googleplus', 'youtube',
+    'youtube_id', 'office',
+    // props we can transform into desired props, if needed
+    'firstname', 'lastname', 'image', 'bioguide',
+  ];
 
   try {
-    pol = await dbwrap('hgetallAsync', 'politician:'+politician_id);
-    pol.id = politician_id;
+    refs = await dbwrap('smembersAsync', 'politician:'+politician_id);
   } catch (e) {
     return {};
   }
 
-  pol.data_sources = [];
+  for (let r in refs) {
+    let ref = refs[r];
 
-  let gc = {};
-  let fec = {};
-  let os = {};
-  let ep = {};
-  let uslc = {};
-  let cfar = {};
-
-  if (pol.googlecivics_id) {
-    gc = await dbwrap('hgetallAsync', 'googlecivics:'+politician_id);
-    pol.data_sources.push('googlecivics');
+    let src = ref.split(':')[0];
+    objs.push(await rc.hgetallAsync(ref));
+    pol.data_sources.push(src);
   }
-
-  if (pol.fec_candidate_id) {
-    fec = await dbwrap('hgetallAsync', 'fec:'+pol.fec_candidate_id);
-    pol.data_sources.push('fec');
-  }
-
-  if (pol.openstates_id) {
-    os = await dbwrap('hgetallAsync', 'openstates:'+pol.openstates_id);
-    pol.data_sources.push('openstates');
-  }
-
-  if (pol.everypolitician_id) {
-    ep = await dbwrap('hgetallAsync', 'everypolitician:'+pol.everypolitician_id);
-    pol.data_sources.push('everypolitician');
-  }
-
-  if (pol.uslc_id) {
-    uslc = await dbwrap('hgetallAsync', 'uslc:'+pol.uslc_id);
-    pol.data_sources.push('uslc');
-  }
-
-  // TODO: create table for orgs with integrated links
-  if (pol.cfar_id) {
-    cfar = await dbwrap('hgetallAsync', 'cfar:'+politician_id);
-    pol.data_sources.push('cfar');
-  }
-
-  let props = [
-    'divisionId', 'name', 'first_name', 'last_name', 'address', 'phone', 'email', 'party',
-    'state', 'district', 'url', 'photo_url', 'facebook', 'twitter', 'googleplus', 'youtube',
-    'youtube_id', 'office',
-  ];
 
   for (let p in props) {
     let prop = props[p];
-    if (!pol[prop]) pol[prop] = findPropFromObjs(prop, [gc, fec, os, ep, uslc, cfar]);
+    // TODO: sort objs based on weighted priority (googlecivics first, openstates second, etc)
+    if (!pol[prop]) pol[prop] = findPropFromObjs(prop, objs);
   }
-
-  // fill in high profile props
 
   if ((pol.name && pol.name.indexOf(',') !== -1) || !pol.name) {
     if (pol.first_name)
       pol.name = pol.first_name+' '+pol.last_name;
-    else if (cfar.firstname)
-      pol.name = cfar.firstname+' '+cfar.lastname; // TODO: this is a hack, real fix is to concat the objs together first
+    else if (pol.firstname)
+      pol.name = pol.firstname+' '+pol.lastname;
   }
 
   if (!pol.photo_url) {
-    if (ep.image) pol.photo_url = ep.image;
-    else if (uslc.bioguide) pol.photo_url = 'https://theunitedstates.io/images/congress/230x281/'+uslc.bioguide+'.jpg';
+    if (pol.image) pol.photo_url = pol.image;
+    else if (pol.bioguide) pol.photo_url = 'https://theunitedstates.io/images/congress/230x281/'+pol.bioguide+'.jpg';
   }
 
   if (pol.divisionId)
@@ -581,8 +554,8 @@ async function whorepme(req, res) {
 
           cleanobj(incumbent);
 
-          rc.hmset('politician:'+politician_id, 'googlecivics_id', politician_id);
           rc.hmset('googlecivics:'+politician_id, incumbent);
+          rc.sadd('politician:'+politician_id, 'googlecivics:'+politician_id);
           rc.sadd('division:'+div+':politicians', politician_id);
 
           incumbent = await getInfoFromPolId(politician_id);
@@ -643,57 +616,69 @@ async function whorepme(req, res) {
 
     for (let i in jleg) {
       try {
-        let official = jleg[i];
-        if (!official.active) continue;
+        let os = jleg[i];
+        if (!os.active) continue;
       
-        var last_name = official.last_name.toLowerCase();
-        var first_name = official.first_name.split(" ").shift().toLowerCase();
+        var last_name = os.last_name.toLowerCase();
+        var first_name = os.first_name.split(" ").shift().toLowerCase();
 
-        // TODO: official.boundary_id is NULL for Washington DC
-        let politician_id = sha1(official.boundary_id+":"+last_name+":"+first_name);
+        // TODO: os.boundary_id is NULL for Washington DC
+        let politician_id = sha1(os.boundary_id+":"+last_name+":"+first_name);
 
         let photo_url = '';
-        if (official.photo_url && ovi_config.img_cache_url && ovi_config.img_cache_opt)
-          photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+official.photo_url.split(".").pop();
+        if (os.photo_url && ovi_config.img_cache_url && ovi_config.img_cache_opt)
+          photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+os.photo_url.split(".").pop();
 
-         var incumbent = {
+        var incumbent = {
           id: politician_id,
-          divisionId: official.boundary_id,
-          name: official.full_name,
-          address: ( Object.keys(official.offices).length ? official.offices[0].address : '' ),
-          phone: ( Object.keys(official.offices).length ? official.offices[0].phone : '' ),
-          email: ( official.email ? official.email : '' ),
-          party: ( official.party ? partyFull2Short(official.party) : '' ),
-          state: official.state.toUpperCase(),
-          district: official.district,
-          url: (official.url ? official.url : '' ),
+          divisionId: os.boundary_id,
+          name: os.full_name,
+          address: ( Object.keys(os.offices).length ? os.offices[0].address : '' ),
+          phone: ( Object.keys(os.offices).length ? os.offices[0].phone : '' ),
+          email: ( os.email ? os.email : '' ),
+          party: ( os.party ? partyFull2Short(os.party) : '' ),
+          state: os.state.toUpperCase(),
+          district: os.district,
+          url: (os.url ? os.url : '' ),
           photo_url: photo_url,
           ratings: await getRatings(politician_id, req.user.id),
         };
 
-        rc.hmset('politician:'+politician_id,
-          'last_updated', (new Date).getTime(),
-          'divisionId', incumbent.divisionId,
-          'name', incumbent.name,
-          'address', incumbent.address,
-          'phone', incumbent.phone,
-          'email', incumbent.email,
-          'party', incumbent.party,
-          'url', incumbent.url,
-          'photo_url', ( official.photo_url ? official.photo_url : '' ), // store the actual URL and not our cached
-        );
+        // TODO: below is copied code ... use same func from civic-loader in different repo
+
+        // convert party data
+        switch (os.party) {
+          case 'Democratic': os.party = 'D'; break;
+          case 'Republican': os.party = 'R'; break;
+          case 'Green': os.party = 'G'; break;
+          case 'Libertarian': os.party = 'L'; break;
+          case 'Democratic-Farmer-Labor': os.party = 'DFL'; break;
+          case 'Independent': os.party = 'I'; break;
+          default: os.party = 'U';
+        }
+
+        // convert array that redis won't like
+        os.address = ( Object.keys(os.offices).length ? os.offices[0].address : '' );
+        os.phone = ( Object.keys(os.offices).length ? os.offices[0].phone : '' );
+        delete os.offices;
+
+        // remove null keys
+        cleanobj(os);
+
+        rc.hmset('openstates:'+os.id, os);
+        rc.sadd('politician:'+os.politician_id, 'openstates:'+ os.id);
         rc.sadd('division:'+incumbent.divisionId+':politicians', politician_id);
 
         let of = {
-          key: official.boundary_id+':'+(i+10),
-          name: incumbent.state+' State Legislative '+official.chamber+' House',
+          key: os.boundary_id+':'+(i+10),
+          name: incumbent.state+' State Legislative '+os.chamber+' House',
           state: incumbent.state,
-          district: official.district,
+          district: os.district,
           incumbents: [incumbent],
           challengers: [],
         };
 
-        if (official.chamber == 'upper') resp.sldu.push(of);
+        if (os.chamber == 'upper') resp.sldu.push(of);
         else resp.sldl.push(of);
 
       } catch(e) {
