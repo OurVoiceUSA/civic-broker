@@ -502,14 +502,15 @@ async function getInfoFromPolId(politician_id) {
   return pol;
 }
 
-var zindex_blacklist = ['politician_id', 'middle_name', 'address', 'phone', 'email', 'url', 'photo_url'];
+var zindex_blacklist = ['politician_id', 'middle_name', 'address', 'phone', 'email', 'url', 'photo_url', 'last_updated'];
 
 async function indexObj(obj, id, key) {
   if (obj == null) return;
   Object.getOwnPropertyNames(obj).forEach((prop) => {
-    let val = obj[prop].replace(/(?:\r\n|\r|\n|\t| |"|\\|)/g, '').toLowerCase();
-    if (!zindex_blacklist.includes(prop))
+    if (!zindex_blacklist.includes(prop)) {
+      let val = obj[prop].replace(/(?:\r\n|\r|\n|\t| |"|\\|)/g, '').toLowerCase();
       rc.sadd('zindex:'+val, id);
+    }
   });
   if (key) rc.sadd('zindex:'+key, id);
   if (obj.divisionId) {
