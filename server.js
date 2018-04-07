@@ -403,6 +403,7 @@ function getInfoFromDataSource(pol, src) {
       break;
     case 'openstates':
       obj.name = 'Openstates';
+      obj.id = pol.id;
       obj.url = 'https://openstates.org/'+pol.state+'/legislators/'+pol.id+'/';
       break;
     case 'everypolitician':
@@ -411,6 +412,7 @@ function getInfoFromDataSource(pol, src) {
       break;
     case 'fec':
       obj.name = 'Federal Election Commission';
+      obj.id = pol.candidate_id;
       obj.url = 'https://www.fec.gov/data/candidate/'+pol.candidate_id+'/';
       break;
     case 'uslc':
