@@ -419,6 +419,10 @@ function getInfoFromDataSource(pol, src) {
       obj.name = 'The @unitedstates Project';
       obj.url = 'https://theunitedstates.io/';
       break;
+    case 'csusa':
+      obj.name = 'Civil Service USA';
+      obj.url = 'https://civil.services/';
+      break;
     case 'cfar':
       obj.name = 'Contract For American Renewal (CFAR)';
       obj.url = 'https://twitter.com/CFAR_2018';
