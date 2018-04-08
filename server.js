@@ -567,8 +567,17 @@ async function whorepme(req, res) {
         let official = json.officials[p];
 
         try {
-          var last_name = official.name.split(" ").pop().toLowerCase();
-          var first_name = official.name.split(" ").shift().toLowerCase();
+          let name_slices = official.name.split(" ");
+
+          let first_name = name_slices.shift().toLowerCase();
+          let last_name = name_slices.pop().toLowerCase();
+
+          // if last_name is 'Jr.', 'Sr.', etc ... fix it here
+          switch (last_name) {
+            case 'jr.':
+            case 'sr.':
+              last_name = name_slices.pop().toLowerCase();
+          }
 
           // calculate an ID based on division, last name, first name - no middle initial
           let politician_id = sha1(div+":"+last_name+":"+first_name);
