@@ -425,7 +425,7 @@ function getInfoFromDataSource(pol, src) {
       break;
     case 'cfar':
       obj.name = 'Contract For American Renewal (CFAR)';
-      obj.url = 'https://twitter.com/CFAR_2018';
+      obj.url = 'https://citizensagainstplutocracy.org/';
       break;
     default:
       obj.name = src;
