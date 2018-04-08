@@ -391,6 +391,40 @@ async function getDivisionsFromGoogle(req) {
   };
 }
 
+function getPolExternalLinks(pol) {
+  let links = ['opensecrets', 'govtrack', 'votesmart', 'cspan', 'ballotpedia'];
+  let refs = [];
+
+  for (let l in links) {
+    let link = links[l];
+    if (pol[link]) {
+      let obj = { key: link, id: pol[link], name: link };
+      switch (link) {
+        case 'opensecrets':
+          obj.name = 'OpenSecrets';
+          obj.url = 'https://www.opensecrets.org/members-of-congress/summary/?cid='+pol[link];
+          break;
+        case 'govtrack':
+          obj.url = 'https://www.govtrack.us/congress/members/'+pol[link];
+          break;
+        case 'votesmart':
+          obj.name = 'VoteSmart';
+          obj.url = 'https://votesmart.org/candidate/biography/'+pol[link];
+          break;
+        case 'cspan':
+          obj.url = 'https://www.c-span.org/person/?'+pol[link];
+          break;
+        case 'ballotpedia':
+          obj.url = 'https://ballotpedia.org/'+pol[link];
+          break;
+      }
+      refs.push(obj);
+    }
+  }
+
+  return refs;
+}
+
 function getInfoFromDataSource(pol, src) {
   let obj = {
     key: src,
@@ -461,12 +495,13 @@ async function getInfoFromPolId(politician_id) {
   let pol = {
     id: politician_id,
     data_sources: [],
+    external_links: [],
   };
   let props = [
     // desired props
     'divisionId', 'name', 'first_name', 'last_name', 'address', 'phone', 'email', 'party',
     'state', 'district', 'url', 'photo_url', 'facebook', 'twitter', 'googleplus', 'youtube',
-    'youtube_id', 'office',
+    'youtube_id', 'office', 'opensecrets', 'govtrack', 'votesmart', 'cspan', 'ballotpedia',
     // props we can transform into desired props, if needed
     'image', 'bioguide',
   ];
@@ -490,6 +525,8 @@ async function getInfoFromPolId(politician_id) {
     let prop = props[p];
     if (!pol[prop]) pol[prop] = findPropFromObjs(prop, objs);
   }
+
+  pol.external_links = getPolExternalLinks(pol);
 
   if ((pol.name && pol.name.indexOf(',') !== -1) || !pol.name) {
     if (pol.first_name)
