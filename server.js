@@ -468,7 +468,7 @@ async function getInfoFromPolId(politician_id) {
     'state', 'district', 'url', 'photo_url', 'facebook', 'twitter', 'googleplus', 'youtube',
     'youtube_id', 'office',
     // props we can transform into desired props, if needed
-    'firstname', 'lastname', 'image', 'bioguide',
+    'image', 'bioguide',
   ];
 
   try {
@@ -494,8 +494,6 @@ async function getInfoFromPolId(politician_id) {
   if ((pol.name && pol.name.indexOf(',') !== -1) || !pol.name) {
     if (pol.first_name)
       pol.name = pol.first_name+' '+pol.last_name;
-    else if (pol.firstname)
-      pol.name = pol.firstname+' '+pol.lastname;
   }
 
   if (!pol.photo_url) {
