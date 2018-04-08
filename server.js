@@ -780,9 +780,13 @@ async function whorepme(req, res) {
 }
 
 async function search(req, res) {
-  var resp = { results: [] };
+  var resp = { results: [], total: 0 };
 
+  let page = Number.parseFloat((req.query.page?req.query.page:1));
   let str = req.query.str.replace(/(?:\r\n|\r|\n|\t|"|\\|)/g, '').toLowerCase()
+
+  // hardcode for now
+  let perPage = 20;
 
   // alias broad search terms to narrow them down
   str = str.replace('state house', 'sldl');
@@ -857,23 +861,33 @@ async function search(req, res) {
     idx++;
   }
 
-  // TODO: paginate
-  if (results.length > 500) return res.status(400).send({msg: 'Too many results, please refine your search.'});
+  let num = 1;
 
   for (let r in results) {
-    let politician_id = results[r];
-    // TODO: merge data from all sources for a full politician profile
-    let pol = await getInfoFromPolId(politician_id);
-    //pol.id = politician_id;
-    resp.results.push(pol)
+    if (num > ((page-1)*perPage) && num <= (page*perPage)) {
+      let politician_id = results[r];
+      let pol = await getInfoFromPolId(politician_id);
+      resp.results.push(pol)
+    }
+
+    num++;
   }
+
+  resp.total = num;
 
   wslog(req, 'search', {num: results.length, str: req.query.str});
 
   switch (items[0]) {
     case 'tesla':
     case 'spacex':
-      resp = [{first_name: 'Elon', last_name: 'Musk', twitter: 'elonmusk', office: 'Private Sector Tech Big Wig'}];
+      resp.results = [{
+        name: 'Elon Musk', twitter: 'elonmusk', office: 'Private Sector Tech Big Wig', divisionName: 'California',
+        url: 'http://www.spacex.com/', youtube_id: 'spacexchannel', wikipedia_id: 'Elon_Musk',
+        bio: 'Entrepreneur, engineer, and investor. **Not actually running for public office. This is an easter egg.',
+        photo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Elon_Musk_2015.jpg/330px-Elon_Musk_2015.jpg',
+        data_sources: [{name: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Elon_Musk'}]
+      }];
+      resp.total = 1;
   }
 
   res.send(resp);
