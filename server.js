@@ -501,7 +501,8 @@ async function getInfoFromPolId(politician_id) {
     // desired props
     'divisionId', 'name', 'first_name', 'last_name', 'address', 'phone', 'email', 'party',
     'state', 'district', 'url', 'photo_url', 'facebook', 'twitter', 'googleplus', 'youtube',
-    'youtube_id', 'office', 'opensecrets', 'govtrack', 'votesmart', 'cspan', 'ballotpedia',
+    'youtube_id', 'wikipedia', 'office',
+    'opensecrets', 'govtrack', 'votesmart', 'cspan', 'ballotpedia',
     // props we can transform into desired props, if needed
     'image', 'bioguide',
   ];
@@ -815,7 +816,7 @@ async function whorepme(req, res) {
 }
 
 async function search(req, res) {
-  var resp = { results: [], total: 0 };
+  var resp = { results: [], pages: 0 };
 
   let page = Number.parseFloat((req.query.page?req.query.page:1));
   let str = req.query.str.replace(/(?:\r\n|\r|\n|\t|"|\\|)/g, '').toLowerCase()
@@ -908,7 +909,7 @@ async function search(req, res) {
     num++;
   }
 
-  resp.total = num;
+  resp.pages = Math.ceil(num/perPage);
 
   wslog(req, 'search', {num: results.length, str: req.query.str});
 
@@ -917,12 +918,12 @@ async function search(req, res) {
     case 'spacex':
       resp.results = [{
         name: 'Elon Musk', twitter: 'elonmusk', office: 'Private Sector Tech Big Wig', divisionName: 'California',
-        url: 'http://www.spacex.com/', youtube_id: 'spacexchannel', wikipedia_id: 'Elon_Musk',
+        url: 'http://www.spacex.com/', youtube_id: 'spacexchannel', wikipedia: 'Elon_Musk',
         bio: 'Entrepreneur, engineer, and investor. **Not actually running for public office. This is an easter egg.',
         photo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Elon_Musk_2015.jpg/330px-Elon_Musk_2015.jpg',
         data_sources: [{name: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Elon_Musk'}]
       }];
-      resp.total = 1;
+      resp.pages = 1;
   }
 
   res.send(resp);
