@@ -457,6 +457,10 @@ function getInfoFromDataSource(pol, src) {
       obj.name = 'Civil Service USA';
       obj.url = 'https://civil.services/';
       break;
+    case 'ovps':
+      obj.name = 'Public Submission Form';
+      obj.url = 'https://docs.google.com/forms/d/1rCvfxHaj0oLRMblAMT1hdsM3rgmoSP9Xo_uxzBM6jqU/';
+      break;
     case 'cfar':
       obj.name = 'Contract For American Renewal (CFAR)';
       obj.url = 'https://citizensagainstplutocracy.org/';
