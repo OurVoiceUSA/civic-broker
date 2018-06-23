@@ -4,7 +4,7 @@ Our Voice Initiative is a 501(c)(4) non-profit, non-partisian organization for c
 
 ## Features
 
-This is the API backend to the OVMobile project. It sources information from the Google Civic API and passes it along to the app. In the future, it will also broker and merge in information from other APIs as well, such as Openstates, Congress API, and other GitHub projects such as @unitedstates.
+This API provides civic data from various sources, such as the Google Civic API, OpenStates, and others.
 
 ## Development Setup
 
