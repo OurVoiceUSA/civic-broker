@@ -25,9 +25,9 @@ Make sure you enable the Civic API on your google console in order for your `API
 **NOTE:** At the time of this writing, the tool versions are as follows:
 
     $ npm -v
-    5.6.0
+    6.4.1
     $ node -v
-    v8.11.3
+    v8.12.0
 
 ## Contributing
 
