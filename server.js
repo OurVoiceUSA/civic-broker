@@ -22,7 +22,6 @@ const ovi_config = {
   redis_host: ( process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost' ),
   redis_port: ( process.env.REDIS_PORT ? process.env.REDIS_PORT : 6379 ),
   jwt_pub_key: ( process.env.JWT_PUB_KEY ? process.env.JWT_PUB_KEY : missingConfig("JWT_PUB_KEY") ),
-  jwt_iss: ( process.env.JWT_ISS ? process.env.JWT_ISS : 'example.com' ),
   api_key_google: ( process.env.API_KEY_GOOGLE ? process.env.API_KEY_GOOGLE : missingConfig("API_KEY_GOOGLE") ),
   api_key_openstates: ( process.env.API_KEY_OPENSTATES ? process.env.API_KEY_OPENSTATES : missingConfig("API_KEY_OPENSTATES") ),
   img_cache_url: ( process.env.IMG_CACHE_URL ? process.env.IMG_CACHE_URL : null ),
