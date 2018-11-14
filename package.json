@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "docker": "babel-node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node_modules/nodemon/bin/nodemon.js --exec babel-node server.js"
   },
