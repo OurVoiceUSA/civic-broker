@@ -16,8 +16,6 @@ import sha1 from 'sha1';
 import httpProxy from 'http-proxy';
 import * as secrets from "docker-secrets-nodejs";
 
-secrets.setupSecretsDir();
-
 const ovi_config = {
   server_port: getConfig("server_port", false, 8080),
   wsbase: getConfig("wsbase", false, 'http://localhost:8080'),
