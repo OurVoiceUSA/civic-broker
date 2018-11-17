@@ -1020,6 +1020,10 @@ app.post('/api/v1/whorepme', whorepme);
 app.post('/api/v1/search', search);
 app.get('/api/v1/search', search);
 
+Object.keys(ovi_config).forEach((k) => {
+  delete process.env[k.toUpperCase()];
+});
+
 // Launch the server
 const server = app.listen(ovi_config.server_port, () => {
   const { address, port } = server.address();
