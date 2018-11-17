@@ -14,20 +14,23 @@ import fs from 'fs';
 import http from 'http';
 import sha1 from 'sha1';
 import httpProxy from 'http-proxy';
+import * as secrets from "docker-secrets-nodejs";
+
+secrets.setupSecretsDir();
 
 const ovi_config = {
-  server_port: ( process.env.SERVER_PORT ? process.env.SERVER_PORT : 8080 ),
-  wsbase: ( process.env.WSBASE ? process.env.WSBASE : 'http://localhost:8080' ),
-  ip_header: ( process.env.CLIENT_IP_HEADER ? process.env.CLIENT_IP_HEADER : null ),
-  redis_host: ( process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost' ),
-  redis_port: ( process.env.REDIS_PORT ? process.env.REDIS_PORT : 6379 ),
-  jwt_pub_key: ( process.env.JWT_PUB_KEY ? process.env.JWT_PUB_KEY : missingConfig("JWT_PUB_KEY") ),
-  api_key_google: ( process.env.API_KEY_GOOGLE ? process.env.API_KEY_GOOGLE : missingConfig("API_KEY_GOOGLE") ),
-  api_key_openstates: ( process.env.API_KEY_OPENSTATES ? process.env.API_KEY_OPENSTATES : missingConfig("API_KEY_OPENSTATES") ),
-  img_cache_url: ( process.env.IMG_CACHE_URL ? process.env.IMG_CACHE_URL : null ),
-  img_cache_opt: ( process.env.IMG_CACHE_OPT ? process.env.IMG_CACHE_OPT : null ),
-  require_auth: ( process.env.AUTH_OPTIONAL ? false : true ),
-  DEBUG: ( process.env.DEBUG ? true : false ),
+  server_port: getConfig("server_port", false, 8080),
+  wsbase: getConfig("wsbase", false, 'http://localhost:8080'),
+  ip_header: getConfig("client_ip_header", false, null),
+  redis_host: getConfig("redis_host", false, 'localhost'),
+  redis_port: getConfig("redis_port", false, 6379),
+  jwt_pub_key: getConfig("jwt_pub_key", true, null),
+  api_key_google: getConfig("api_key_google", true, null),
+  api_key_openstates: getConfig("api_key_openstates", true, null),
+  img_cache_url: getConfig("img_cache_url", false, null),
+  img_cache_opt: getConfig("img_cache_opt", false, null),
+  require_auth: getConfig("auth_optional", false, true),
+  DEBUG: getConfig("debug", false, false),
 };
 
 var public_key = fs.readFileSync(ovi_config.jwt_pub_key);
@@ -51,10 +54,18 @@ rc.on('connect', async function() {
     console.log('Connected to redis at host "'+ovi_config.redis_host+'"');
 });
 
-function missingConfig(item) {
-  let msg = "Missing config: "+item;
-  console.log(msg);
-  throw msg;
+function getConfig(item, required, def) {
+  let value = secrets.get(item);
+  if (!value) {
+    if (required) {
+      let msg = "Missing config: "+item.toUpperCase();
+      console.log(msg);
+      throw msg;
+    } else {
+      return def;
+    }
+  }
+  return value;
 }
 
 async function dbwrap() {
