@@ -22,16 +22,36 @@ const ovi_config = {
   ip_header: getConfig("client_ip_header", false, null),
   redis_host: getConfig("redis_host", false, 'localhost'),
   redis_port: getConfig("redis_port", false, 6379),
-  jwt_pub_key: getConfig("jwt_pub_key", true, null),
+  jwt_pub_key: getConfig("jwt_pub_key", false, null),
   api_key_google: getConfig("api_key_google", true, null),
   api_key_openstates: getConfig("api_key_openstates", true, null),
   img_cache_url: getConfig("img_cache_url", false, null),
   img_cache_opt: getConfig("img_cache_opt", false, null),
   require_auth: getConfig("auth_optional", false, true),
+  sm_oauth: getConfig("sm_oauth_url", false, 'https://ws.ourvoiceusa.org/auth'),
   DEBUG: getConfig("debug", false, false),
 };
 
-var public_key = fs.readFileSync(ovi_config.jwt_pub_key);
+var public_key;
+
+if (ovi_config.jwt_pub_key) {
+  public_key = fs.readFileSync(ovi_config.jwt_pub_key);
+} else {
+  console.log("JWT_PUB_KEY not defined, attempting to fetch from "+ovi_config.sm_oauth);
+  fetch(ovi_config.sm_oauth+'/pubkey')
+  .then(res => {
+    if (res.status !== 200) throw "http code "+res.status;
+    return res.text()
+  })
+  .then(body => {
+    public_key = body;
+  })
+  .catch((e) => {
+    console.log("Unable to read SM_OAUTH_URL "+ovi_config.sm_oauth);
+    console.log(e);
+    process.exit(1);
+  });
+}
 
 // async'ify redis
 pifall(redis.RedisClient.prototype);

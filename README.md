@@ -15,14 +15,12 @@ Start by configuring the `.env` file:
     export REDIS_PORT=6379
     export WSBASE=http://localhost:8080
     export API_KEY_GOOGLE=<YOUR KEY>
-    export JWT_PUB_KEY=./rsa.pub
     export DEBUG=1
     EOF
 
 Then, run the following steps:
 
 * Install dependancies: `npm install`
-* Copy the `rsa.pub` file from your `sm-oauth`
 * Source in the configuration: `source .env`
 * Start the application: `npm start`
 
