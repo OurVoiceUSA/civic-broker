@@ -1043,6 +1043,7 @@ app.get('/api/v1/search', search);
 Object.keys(ovi_config).forEach((k) => {
   delete process.env[k.toUpperCase()];
 });
+require = null;
 
 if (!ovi_config.DEBUG) {
   process.on('SIGUSR1', () => {
