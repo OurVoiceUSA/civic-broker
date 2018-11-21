@@ -26,13 +26,6 @@ Then, run the following steps:
 
 Make sure you enable the Civic API on your google console in order for your `API_KEY_GOOGLE` to work here.
 
-**NOTE:** At the time of this writing, the tool versions are as follows:
-
-    $ npm -v
-    6.4.1
-    $ node -v
-    v8.12.0
-
 ## Contributing
 
 Thank you for your interest in contributing to us! To avoid potential legal headaches please sign our CLA (Contributors License Agreement). We handle this via pull request hooks on GitHub provided by https://cla-assistant.io/
