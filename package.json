@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node_modules/nodemon/bin/nodemon.js --exec babel-node server.js"
+    "start": "node node_modules/nodemon/bin/nodemon.js --exec babel-node server.js"
   },
   "author": "Our Voice USA",
   "license": "AGPL-3.0",
