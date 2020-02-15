@@ -24,7 +24,6 @@ const ovi_config = {
   redis_port: getConfig("redis_port", false, 6379),
   jwt_pub_key: getConfig("jwt_pub_key", false, null),
   api_key_google: getConfig("api_key_google", true, null),
-  api_key_openstates: getConfig("api_key_openstates", true, null),
   img_cache_url: getConfig("img_cache_url", false, null),
   img_cache_opt: getConfig("img_cache_opt", false, null),
   require_auth: getConfig("auth_optional", false, true),
@@ -337,32 +336,6 @@ async function cimage(req, res) {
   apiProxy.web(req, res, {target: ovi_config.img_cache_url});
 }
 
-async function getStateLegsFromOpenstates(req) {
-
-  let lng = Number.parseFloat((req.body.lng?req.body.lng:req.query.lng));
-  let lat = Number.parseFloat((req.body.lat?req.body.lat:req.query.lat));
-
-  // TODO: if no lng/lat - call google web API based on address
-
-  if (!lng || !lat) return [];
-
-  var url = "https://openstates.org/api/v1/legislators/geo/?lat="+lat+"&long="+lng;
-
-  try {
-    const response = await fetch(url, {compress: true, headers: {'X-API-KEY': ovi_config.api_key_openstates}});
-    const json = await response.json();
-    return json;
-  } catch (e) {
-    console.log(e);
-  }
-  return {
-    "error": {
-      "code": 400,
-      "message": "Unknown error."
-    }
-  };
-}
-
 async function getDivisionsFromGoogle(req) {
 
   let lng = Number.parseFloat((req.body.lng?req.body.lng:req.query.lng));
@@ -465,11 +438,6 @@ function getInfoFromDataSource(pol, src) {
       obj.name = 'Google Civics';
       obj.url = 'https://developers.google.com/civic-information/';
       break;
-    case 'openstates':
-      obj.name = 'Openstates';
-      obj.id = pol.id;
-      obj.url = 'https://openstates.org/'+pol.state+'/legislators/'+pol.id+'/';
-      break;
     case 'everypolitician':
       obj.name = 'EveryPolitician';
       obj.url = 'http://everypolitician.org/united-states-of-america/';
@@ -507,7 +475,7 @@ function findPropFromObjs(prop, objs) {
 
   // TODO: this is inefficient ... but it works for now
 
-  let first = ['googlecivics', 'openstates', 'fec'];
+  let first = ['googlecivics', 'fec'];
 
   // look here first
   for (let f in first) {
@@ -764,83 +732,6 @@ async function whorepme(req, res) {
 
     }
 
-  }
-
-  // no state legs? try openstates
-  if (resp.sldl.length == 0 || resp.sldu.length == 0) {
-    const jleg = await getStateLegsFromOpenstates(req);
-
-    for (let i in jleg) {
-      try {
-        let os = jleg[i];
-        if (!os.active) continue;
-      
-        var last_name = os.last_name.toLowerCase();
-        var first_name = os.first_name.split(" ").shift().toLowerCase();
-
-        // TODO: os.boundary_id is NULL for Washington DC
-        let politician_id = sha1(os.boundary_id+":"+last_name+":"+first_name);
-
-        let photo_url = '';
-        if (os.photo_url && ovi_config.img_cache_url && ovi_config.img_cache_opt)
-          photo_url = ovi_config.wsbase+'/images/'+politician_id+'.'+os.photo_url.split(".").pop();
-
-        var incumbent = {
-          id: politician_id,
-          divisionId: os.boundary_id,
-          name: os.full_name,
-          address: ( Object.keys(os.offices).length ? os.offices[0].address : '' ),
-          phone: ( Object.keys(os.offices).length ? os.offices[0].phone : '' ),
-          email: ( os.email ? os.email : '' ),
-          party: ( os.party ? partyFull2Short(os.party) : '' ),
-          state: os.state.toUpperCase(),
-          district: os.district,
-          url: (os.url ? os.url : '' ),
-          photo_url: photo_url,
-          ratings: await getRatings(politician_id, req.user.id),
-        };
-
-        // TODO: below is copied code ... use same func from civic-loader in different repo
-
-        // convert party data
-        switch (os.party) {
-          case 'Democratic': os.party = 'D'; break;
-          case 'Republican': os.party = 'R'; break;
-          case 'Green': os.party = 'G'; break;
-          case 'Libertarian': os.party = 'L'; break;
-          case 'Democratic-Farmer-Labor': os.party = 'DFL'; break;
-          case 'Independent': os.party = 'I'; break;
-          default: os.party = 'U';
-        }
-
-        // convert array that redis won't like
-        os.address = ( Object.keys(os.offices).length ? os.offices[0].address : '' );
-        os.phone = ( Object.keys(os.offices).length ? os.offices[0].phone : '' );
-        delete os.offices;
-
-        // remove null keys
-        cleanobj(os);
-
-        rc.hmset('openstates:'+os.id, os);
-        rc.sadd('politician:'+os.politician_id, 'openstates:'+ os.id);
-        rc.sadd('division:'+incumbent.divisionId+':politicians', politician_id);
-
-        let of = {
-          key: os.boundary_id+':'+(i+10),
-          name: incumbent.state+' State Legislative '+os.chamber+' House',
-          state: incumbent.state,
-          district: os.district,
-          incumbents: [incumbent],
-          challengers: [],
-        };
-
-        if (os.chamber == 'upper') resp.sldu.push(of);
-        else resp.sldl.push(of);
-
-      } catch(e) {
-        console.log(e);
-      }
-    }
   }
 
   if (ovi_config.DEBUG) console.log(JSON.stringify(resp));
